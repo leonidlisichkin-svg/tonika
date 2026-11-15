@@ -1,0 +1,10 @@
+id: generic-upper
+name: Generic, capital stressed vowel
+notation: upper
+languages: ["*"]
+notes: >
+  The stressed vowel in upper case: "зАмок". A common fallback for engines that ignore accent
+  marks. Has no effect on words written in capitals.
+verified_by: unverified
+verified_on: null
+source_url: null

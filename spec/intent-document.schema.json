@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/leonidlisichkin-svg/tonika/blob/main/spec/intent-document.schema.json",
+  "title": "Tonika Intent Document",
+  "description": "Text plus pronunciation decisions about it. Offsets are code-point indices into text after NFC normalisation. Cross-field rules (offsets inside text, form equal to the text at its offsets, sorted non-overlapping tokens, stress indices inside the surface form) are checked by tonika.document.IntentDocument.validate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["spec", "lang", "model", "text", "tokens"],
+  "properties": {
+    "spec": { "const": "1.0" },
+    "lang": { "type": "string", "minLength": 1, "description": "BCP-47 language tag" },
+    "model": { "type": "string", "minLength": 1, "description": "Model and data version that produced the decisions" },
+    "text": { "type": "string" },
+    "tokens": { "type": "array", "items": { "$ref": "#/$defs/token" } }
+  },
+  "$defs": {
+    "token": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "form", "kind", "reading", "confidence", "source"],
+      "properties": {
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 1 },
+        "form": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["stress", "yo", "heteronym", "polyphone", "diacritics", "custom"] },
+        "reading": { "$ref": "#/$defs/reading" },
+        "alternatives": { "type": "array", "items": { "$ref": "#/$defs/reading" } },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "source": { "enum": ["model", "lexicon", "rules", "user", "input"] }
+      }
+    },
+    "reading": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One way to pronounce a token. An empty object means read as written.",
+      "properties": {
+        "stress": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 },
+          "uniqueItems": true,
+          "description": "Zero-based letter indices into the surface form (respell if present, else form). The first is the primary stress."
+        },
+        "respell": { "type": "string", "minLength": 1, "description": "Replacement spelling, e.g. все -> всё" },
+        "ipa": { "type": "string", "minLength": 1 },
+        "reading_id": { "type": "string", "minLength": 1, "description": "Reference to a lexicon entry" }
+      }
+    }
+  }
+}
