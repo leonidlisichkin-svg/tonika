@@ -1,0 +1,70 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tonika"
+version = "0.0.1"
+description = "Open pronunciation layer for any TTS: context-aware word stress, starting with Russian."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "Leo Lisichkin" }]
+keywords = ["tts", "text-to-speech", "stress", "accentuation", "homographs", "pronunciation", "russian"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Natural Language :: Russian",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Text Processing :: Linguistic",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.optional-dependencies]
+# Reserved for the Russian language pack (Phase 1). It will pull in stressonnx.
+ru = []
+
+[project.scripts]
+tonika = "tonika.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/leonidlisichkin-svg/tonika"
+Issues = "https://github.com/leonidlisichkin-svg/tonika/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "jsonschema>=4.22",
+    "pyyaml>=6",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tonika"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+# Cyrillic letters in strings and comments are intentional.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "models: needs real language models downloaded from the network; runs only in GitHub Actions",
+]

@@ -1,0 +1,10 @@
+id: yandex-speechkit
+name: Yandex SpeechKit
+notation: plus
+languages: [ru]
+notes: >
+  Put "+" directly before the stressed vowel: "зам+ок". Stress markup is supported for Russian
+  only, through API v3 and API v1 (text input). Phonemes go in double square brackets.
+verified_by: documentation
+verified_on: 2026-11-16
+source_url: https://yandex.cloud/ru-kz/docs/speechkit/tts/markup/tts-markup
