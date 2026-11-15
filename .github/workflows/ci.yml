@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     name: Lint, types, offline tests (Python ${{ matrix.python }})
@@ -41,9 +45,11 @@ jobs:
           test "$out" = "В старом з+амке сломался зам+ок."
 
   models:
-    name: Tests with real models
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    name: Real models, tests and accuracy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -51,8 +57,61 @@ jobs:
           python-version: "3.13"
       - name: Install uv
         run: python -m pip install --upgrade uv
-      - name: Install
-        run: uv sync --all-extras
-      - name: Model tests
-        # Exit code 5 means "no tests collected": expected until Phase 1 adds model tests.
-        run: uv run pytest -m models || [ $? -eq 5 ]
+      - name: Cache models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: models-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+      - name: Install with the Russian pack
+        run: uv sync --extra ru
+      - name: Tests with real models
+        id: tests
+        run: |
+          set +e
+          uv run pytest -m models -q -p no:cacheprovider 2>&1 | tee tests.log
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Accuracy on the golden set
+        id: accuracy
+        run: |
+          set +e
+          uv run tonika eval data/golden/ru.txt --lang ru \
+            --baseline data/golden/baseline.json > accuracy.md 2> accuracy.log
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat accuracy.md accuracy.log
+          exit 0
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          TESTS: ${{ steps.tests.outputs.status }}
+          ACCURACY: ${{ steps.accuracy.outputs.status }}
+        run: |
+          {
+            if [ "$TESTS" = "0" ]; then
+              echo "**Tests with real models:** passed"
+            else
+              echo "**Tests with real models:** FAILED"
+              echo
+              echo '```'
+              tail -n 80 tests.log
+              echo '```'
+            fi
+            echo
+            if [ -s accuracy.md ]; then cat accuracy.md; else
+              echo "**Accuracy run failed**"
+              echo
+              echo '```'
+              tail -n 40 accuracy.log
+              echo '```'
+            fi
+          } > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$PR" ]; then
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file report.md --edit-last --create-if-none \
+              || gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file report.md \
+              || echo "could not comment on the pull request"
+          fi
+          test "$TESTS" = "0" && test "$ACCURACY" = "0"

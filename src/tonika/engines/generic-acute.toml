@@ -1,0 +1,10 @@
+name = "Generic, combining acute accent"
+notation = "acute"
+languages = ["*"]
+verified_by = "unverified"
+verified_on = ""
+source_url = ""
+notes = """
+Unicode combining acute accent (U+0301) after the stressed vowel: "за́мок". The standard way to
+write stress in Cyrillic. Some engines ignore it, so check by ear before relying on it.
+"""

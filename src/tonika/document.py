@@ -82,7 +82,10 @@ class Reading:
 
 @dataclass(frozen=True, slots=True)
 class Token:
-    """A span of the input whose pronunciation Tonika has an opinion about."""
+    """A span of the input whose pronunciation Tonika has an opinion about.
+
+    ``confidence`` is between 0 and 1, or ``None`` when the source cannot estimate it.
+    """
 
     start: int
     end: int
@@ -90,7 +93,7 @@ class Token:
     reading: Reading
     kind: TokenKind = "stress"
     alternatives: tuple[Reading, ...] = ()
-    confidence: float = 1.0
+    confidence: float | None = None
     source: Source = "model"
 
     @property
@@ -113,7 +116,8 @@ class Token:
         }
         if self.alternatives:
             out["alternatives"] = [alt.to_dict() for alt in self.alternatives]
-        out["confidence"] = self.confidence
+        if self.confidence is not None:
+            out["confidence"] = self.confidence
         out["source"] = self.source
         return out
 
@@ -134,8 +138,10 @@ class Token:
         alternatives = data.get("alternatives", [])
         if not isinstance(alternatives, list):
             raise IntentDocumentError("token alternatives must be a list")
-        confidence = data.get("confidence", 1.0)
-        if not isinstance(confidence, int | float) or isinstance(confidence, bool):
+        confidence = data.get("confidence")
+        if confidence is not None and (
+            not isinstance(confidence, int | float) or isinstance(confidence, bool)
+        ):
             raise IntentDocumentError("token confidence must be a number")
         kind = data.get("kind", "stress")
         source = data.get("source", "model")
@@ -150,7 +156,7 @@ class Token:
             reading=Reading.from_dict(data["reading"]),
             kind=cast(TokenKind, kind),
             alternatives=tuple(Reading.from_dict(alt) for alt in alternatives),
-            confidence=float(confidence),
+            confidence=None if confidence is None else float(confidence),
             source=cast(Source, source),
         )
 
@@ -194,7 +200,9 @@ class IntentDocument:
                 raise IntentDocumentError(f"{where}: unknown kind {token.kind!r}")
             if token.source not in SOURCES:
                 raise IntentDocumentError(f"{where}: unknown source {token.source!r}")
-            if not (math.isfinite(token.confidence) and 0.0 <= token.confidence <= 1.0):
+            if token.confidence is not None and not (
+                math.isfinite(token.confidence) and 0.0 <= token.confidence <= 1.0
+            ):
                 raise IntentDocumentError(f"{where}: confidence must be between 0 and 1")
             for reading in (token.reading, *token.alternatives):
                 _check_reading(reading, token, where)

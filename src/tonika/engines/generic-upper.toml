@@ -1,0 +1,10 @@
+name = "Generic, capital stressed vowel"
+notation = "upper"
+languages = ["*"]
+verified_by = "unverified"
+verified_on = ""
+source_url = ""
+notes = """
+The stressed vowel in upper case: "зАмок". A common fallback for engines that ignore accent
+marks. Has no effect on words written in capitals.
+"""

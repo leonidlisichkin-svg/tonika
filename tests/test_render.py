@@ -46,6 +46,24 @@ def test_unknown_notation_or_mode(proof_document: IntentDocument) -> None:
         render(proof_document, mode="some")
 
 
+def test_forced_readings_are_marked_in_every_mode() -> None:
+    from tonika import IntentDocument, Reading, Token
+
+    document = IntentDocument(
+        lang="ru",
+        model="test",
+        text="замок замок",
+        tokens=(
+            Token(0, 5, "замок", Reading(stress=(1,)), source="user"),
+            Token(6, 11, "замок", Reading(stress=(3,)), source="model"),
+        ),
+    )
+    assert render(document, "plus", "ambiguous") == "з+амок замок"
+    assert render(document, "plus", "yo") == "з+амок замок"
+    assert render(document, "plus", "all") == "з+амок зам+ок"
+    assert render(document, "yo", "all") == "замок замок"
+
+
 def test_mark_stress_rejects_yo() -> None:
     assert mark_stress("замок", [3], "plus") == "зам+ок"
     with pytest.raises(ValueError):

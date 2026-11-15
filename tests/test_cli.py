@@ -44,12 +44,65 @@ def test_stdin_input(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixt
     assert capsys.readouterr().out == "замОк"
 
 
+def test_engine_target_dictionary_output_and_review(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    script = tmp_path / "script.txt"
+    names = tmp_path / "names.dic"
+    out = tmp_path / "out.txt"
+    checklist = tmp_path / "review.md"
+    script.write_text("Окленд. В старом замке сломался замок.\n", encoding="utf-8")
+    names.write_text("Окл+енд\n", encoding="utf-8")
+    args = ["annotate", "-f", str(script), "--target", "yandex-speechkit", "--pack", "fake"]
+    assert main([*args, "--dict", str(names), "-o", str(out), "--review", str(checklist)]) == 0
+    assert capsys.readouterr().out == ""
+    assert out.read_text(encoding="utf-8") == "Окл+енд. В старом з+амке сломался зам+ок.\n"
+    review = checklist.read_text(encoding="utf-8")
+    assert review.startswith("Words to check: 2")
+    assert "**з+амке**" in review and "(or: замк+е)" in review
+
+
+def test_engines_command(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["engines"]) == 0
+    out = capsys.readouterr().out
+    assert "yandex-speechkit" in out and "notation plus" in out
+
+
+def test_eval_command(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    golden = tmp_path / "golden.txt"
+    golden.write_text("# demo\nВ старом з+амке сломался зам+ок.\nСтарого замк+а нет.\n", "utf-8")
+    assert main(["eval", str(golden), "--pack", "fake"]) == 0
+    assert "| Correct | 2 (66.7%) |" in capsys.readouterr().out
+
+    assert main(["eval", str(golden), "--pack", "fake", "--min-accuracy", "0.9"]) == 1
+    assert "**below** the floor of 90.0%" in capsys.readouterr().out
+
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text('{"ru": {"min_accuracy": 0.5}}', "utf-8")
+    command = ["eval", str(golden), "--pack", "fake", "--baseline", str(baseline)]
+    assert main([*command, "--format", "json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert (data["total"], data["correct"], data["passed"]) == (3, 2, True)
+    assert data["failures"][0]["expected"] == "замк+а"
+
+
 def test_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["annotate", "--lang", "xx", "hello"]) == 1
     assert "no language pack" in capsys.readouterr().err
     assert main(["annotate", "-f", str(tmp_path / "missing.txt")]) == 1
-    assert "cannot read" in capsys.readouterr().err
+    assert "missing.txt: No such file" in capsys.readouterr().err
     assert main(["annotate", "text", "-f", "file.txt"]) == 2
+    capsys.readouterr()
+    assert main(["annotate", "--target", "ssml", "text"]) == 1
+    assert "unknown target" in capsys.readouterr().err
+    bad = tmp_path / "bad.dic"
+    bad.write_text("Окленд\n", encoding="utf-8")
+    assert main(["annotate", "--dict", str(bad), "--pack", "fake", "text"]) == 1
+    assert "bad.dic:1: no stress mark" in capsys.readouterr().err
+    empty = tmp_path / "empty.txt"
+    empty.write_text("Без меток.\n", encoding="utf-8")
+    assert main(["eval", str(empty), "--pack", "fake"]) == 1
+    assert "no word carries a stress mark" in capsys.readouterr().err
 
 
 def test_version(capsys: pytest.CaptureFixture[str]) -> None:

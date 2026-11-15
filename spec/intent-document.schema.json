@@ -17,7 +17,7 @@
     "token": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["start", "end", "form", "kind", "reading", "confidence", "source"],
+      "required": ["start", "end", "form", "kind", "reading", "source"],
       "properties": {
         "start": { "type": "integer", "minimum": 0 },
         "end": { "type": "integer", "minimum": 1 },
@@ -25,7 +25,7 @@
         "kind": { "enum": ["stress", "yo", "heteronym", "polyphone", "diacritics", "custom"] },
         "reading": { "$ref": "#/$defs/reading" },
         "alternatives": { "type": "array", "items": { "$ref": "#/$defs/reading" } },
-        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Omitted when the source cannot estimate it" },
         "source": { "enum": ["model", "lexicon", "rules", "user", "input"] }
       }
     },

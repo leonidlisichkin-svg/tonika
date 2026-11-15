@@ -1,18 +1,33 @@
-"""Command line: ``tonika annotate``."""
+"""Command line: ``tonika annotate``, ``tonika eval``, ``tonika engines``."""
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
 
 from tonika import __version__
+from tonika.dictionary import DictionaryError, UserDictionary
 from tonika.document import IntentDocumentError
-from tonika.packs import DemoPackWarning, UnknownPackError
-from tonika.pipeline import analyze
+from tonika.engines import UnknownEngineError, list_engines, resolve_target
+from tonika.evaluate import ExampleError, evaluate, load_examples, minimum_accuracy
+from tonika.packs import DemoPackWarning, LanguagePack, PackError, UnknownPackError, get_pack
+from tonika.pipeline import analyze_with, default_mode
 from tonika.render import MODES, NOTATIONS, render
+from tonika.review import review
+
+_ERRORS = (
+    UnknownPackError,
+    UnknownEngineError,
+    PackError,
+    DictionaryError,
+    ExampleError,
+    IntentDocumentError,
+    ValueError,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -33,12 +48,34 @@ def build_parser() -> argparse.ArgumentParser:
     )
     annotate.add_argument("text", nargs="?", help="text to annotate; omit to use --file or stdin")
     annotate.add_argument("-f", "--file", type=Path, help="read UTF-8 text from this file")
+    annotate.add_argument("-o", "--output", type=Path, help="write the result to this file")
     annotate.add_argument("--lang", default="ru", help="language tag (default: ru)")
     annotate.add_argument(
-        "--target", choices=NOTATIONS, default="acute", help="output notation (default: acute)"
+        "--target",
+        default="acute",
+        help=f"a notation ({', '.join(NOTATIONS)}) or an engine id, see 'tonika engines' "
+        "(default: acute)",
     )
     annotate.add_argument(
-        "--mode", choices=MODES, default="ambiguous", help="what to mark (default: ambiguous)"
+        "--mode",
+        choices=MODES,
+        help="what to mark: ambiguous words, all words, or only ё "
+        "(default: ambiguous when the language pack knows ambiguity, else all)",
+    )
+    annotate.add_argument(
+        "--dict",
+        dest="dictionaries",
+        action="append",
+        type=Path,
+        default=[],
+        metavar="FILE",
+        help="user dictionary of forced readings; may be given more than once",
+    )
+    annotate.add_argument(
+        "--review",
+        type=Path,
+        metavar="FILE",
+        help="also write a checklist of ambiguous words to this file",
     )
     annotate.add_argument(
         "--format",
@@ -47,6 +84,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="text for TTS, or the Intent Document as JSON (default: text)",
     )
     annotate.add_argument("--pack", default="auto", help="language pack (default: auto)")
+
+    evaluation = commands.add_parser(
+        "eval",
+        help="measure a language pack against sentences with known readings",
+        description="Measure accuracy on a .txt file of marked sentences or a .jsonl example file.",
+    )
+    evaluation.add_argument("examples", type=Path, help="file of examples")
+    evaluation.add_argument("--lang", default="ru", help="language tag (default: ru)")
+    evaluation.add_argument("--pack", default="auto", help="language pack (default: auto)")
+    evaluation.add_argument(
+        "--format", choices=("md", "json"), default="md", help="report format (default: md)"
+    )
+    evaluation.add_argument(
+        "--baseline", type=Path, help="JSON file with the accuracy floor per language"
+    )
+    evaluation.add_argument("--min-accuracy", type=float, help="fail below this accuracy (0 to 1)")
+
+    commands.add_parser("engines", help="list TTS engine presets")
     return parser
 
 
@@ -56,45 +111,95 @@ def main(argv: Sequence[str] | None = None) -> int:
         if reconfigure is not None:
             reconfigure(encoding="utf-8")
     args = build_parser().parse_args(argv)
-    if args.command == "annotate":
-        return _annotate(args)
-    return 2  # pragma: no cover - argparse enforces a command
+    try:
+        if args.command == "annotate":
+            return _annotate(args)
+        if args.command == "eval":
+            return _eval(args)
+        return _engines()
+    except OSError as exc:
+        print(f"tonika: {exc.filename or 'file'}: {exc.strerror or exc}", file=sys.stderr)
+        return 1
+    except _ERRORS as exc:
+        print(f"tonika: {exc}", file=sys.stderr)
+        return 1
+
+
+def _pack(lang: str, name: str) -> LanguagePack:
+    """Get a pack, turning the demo-pack warning into a line on stderr."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", DemoPackWarning)
+        pack = get_pack(lang, name)
+    for warning in caught:
+        if issubclass(warning.category, DemoPackWarning):
+            print(f"tonika: warning: {warning.message}", file=sys.stderr)
+    return pack
 
 
 def _annotate(args: argparse.Namespace) -> int:
     if args.text is not None and args.file is not None:
         print("tonika: give text or --file, not both", file=sys.stderr)
         return 2
+    notation = resolve_target(args.target)
+    dictionary = UserDictionary.load(*args.dictionaries) if args.dictionaries else None
     if args.text is not None:
         text, from_argument = args.text, True
     elif args.file is not None:
-        try:
-            text = args.file.read_text(encoding="utf-8")
-        except OSError as exc:
-            print(f"tonika: cannot read {args.file}: {exc.strerror}", file=sys.stderr)
-            return 1
-        from_argument = False
+        text, from_argument = args.file.read_text(encoding="utf-8"), False
     else:
         text, from_argument = sys.stdin.read(), False
 
-    try:
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always", DemoPackWarning)
-            document = analyze(text, lang=args.lang, pack=args.pack)
-        for warning in caught:
-            if issubclass(warning.category, DemoPackWarning):
-                print(f"tonika: warning: {warning.message}", file=sys.stderr)
-        if args.format == "json":
-            output = document.to_json() + "\n"
-        else:
-            output = render(document, target=args.target, mode=args.mode)
-            if from_argument:
-                output += "\n"
-    except (UnknownPackError, IntentDocumentError, ValueError) as exc:
-        print(f"tonika: {exc}", file=sys.stderr)
-        return 1
+    pack = _pack(args.lang, args.pack)
+    document = analyze_with(pack, text, dictionary)
+    if args.format == "json":
+        output = document.to_json() + "\n"
+    else:
+        output = render(document, notation, args.mode or default_mode(pack))
+        if from_argument:
+            output += "\n"
 
-    sys.stdout.write(output)
+    if args.review is not None:
+        args.review.write_text(review(document), encoding="utf-8")
+    if args.output is not None:
+        args.output.write_text(output, encoding="utf-8")
+    else:
+        sys.stdout.write(output)
+    return 0
+
+
+def _eval(args: argparse.Namespace) -> int:
+    examples = load_examples(args.examples)
+    report = evaluate(examples, _pack(args.lang, args.pack))
+    floor = args.min_accuracy
+    if floor is None and args.baseline is not None:
+        floor = minimum_accuracy(args.baseline, args.lang)
+    passed = floor is None or report.accuracy >= floor
+
+    if args.format == "json":
+        data = report.to_dict()
+        data["min_accuracy"] = floor
+        data["passed"] = passed
+        sys.stdout.write(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+    else:
+        sys.stdout.write(report.to_markdown())
+        if floor is not None:
+            verdict = "at or above" if passed else "**below**"
+            sys.stdout.write(f"\nAccuracy is {verdict} the floor of {floor:.1%}.\n")
+    return 0 if passed else 1
+
+
+def _engines() -> int:
+    for engine in list_engines():
+        checked = (
+            "unverified"
+            if engine.verified_by == "unverified"
+            else f"verified by {engine.verified_by} on {engine.verified_on}"
+        )
+        languages = ", ".join(engine.languages)
+        sys.stdout.write(
+            f"{engine.id}\n  {engine.name}: notation {engine.notation}; "
+            f"languages {languages}; {checked}\n"
+        )
     return 0
 
 
