@@ -175,3 +175,23 @@ def test_the_trial_text_in_crlf_survives_the_command_line(tmp_path: Path, target
     document = IntentDocument.from_json((tmp_path / "doc.json").read_bytes().decode("utf-8"))
     output = (tmp_path / "out").read_bytes().decode("utf-8")
     assert restore(document, output, target).encode("utf-8") == raw
+
+
+def test_the_core_works_without_the_api_extra() -> None:
+    import subprocess
+    import sys
+
+    script = (
+        "import sys\n"
+        "sys.modules['fastapi'] = None\n"
+        "sys.modules['uvicorn'] = None\n"
+        "import tonika, tonika.cli\n"
+        "print(tonika.annotate('В старом замке сломался замок.', target='plus', pack='fake'))\n"
+        "raise SystemExit(tonika.cli.main(['serve']))\n"
+    )
+    done = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, encoding="utf-8"
+    )
+    assert done.stdout.strip() == "В старом з+амке сломался зам+ок."
+    assert done.returncode == 2
+    assert "install it with: pip install 'tonika[api]'" in done.stderr

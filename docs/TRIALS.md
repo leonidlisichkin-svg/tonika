@@ -111,3 +111,28 @@ therefore D-021: exact on one machine, under 0.1% across processors, checked by 
 The CR LF finding above is fixed: `tonika annotate` keeps every line ending, from a file or
 standard input to `-o` or standard output. The trial text converted to CR LF goes through the
 command line and comes back byte for byte once the marks are undone.
+
+## 2026-11-16 · The HTTP API on a long request · pull request #7
+
+`POST /v1/annotate` with the first 20,000 code points of the trial text (the API's limit),
+`target` `plus`, timed with `curl` against `tonika serve` in the Codespace: 2 cores (AMD EPYC
+7763, x86-64-v3), 8 GB, Python 3.13.18, `stressonnx-0.0.2:ruaccent@b8ba7afd`, model files
+already in the local cache.
+
+| Request | Time |
+| --- | --- |
+| First after start (includes loading the model) | 41.4 s |
+| Second | 39.8 s |
+| Third | 39.4 s |
+| A 30-character sentence afterwards | 0.2 s |
+
+The three answers were identical. Loading the model from the cache costs about 2 s; on a new
+machine the first request also waits for the download of about 480 MB. `/v1/languages` answered
+in 14 ms without loading anything.
+
+What it means: about 500 characters per second on this machine, so a 20,000-character request
+keeps a client waiting some 40 seconds, and a 30-minute text (31,000 characters) takes about a
+minute in all. The editor (2.3) should send paragraphs of about 2,000 characters, which come
+back in about 4 seconds each and show progress. Hosting (2.5) needs a model kept in memory
+(about 700 MiB) and is CPU-bound: with `TONIKA_PARALLEL=1` a long request holds the model
+until it is done, and the next one waits.
