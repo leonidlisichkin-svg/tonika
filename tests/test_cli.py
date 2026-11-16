@@ -52,11 +52,11 @@ def test_engine_target_dictionary_output_and_review(
     out = tmp_path / "out.txt"
     checklist = tmp_path / "review.md"
     script.write_text("Окленд. В старом замке сломался замок.\n", encoding="utf-8")
-    names.write_text("Окл+енд\n", encoding="utf-8")
+    names.write_text("+Окленд\n", encoding="utf-8")
     args = ["annotate", "-f", str(script), "--target", "yandex-speechkit", "--pack", "fake"]
     assert main([*args, "--dict", str(names), "-o", str(out), "--review", str(checklist)]) == 0
     assert capsys.readouterr().out == ""
-    assert out.read_text(encoding="utf-8") == "Окл+енд. В старом з+амке сломался зам+ок.\n"
+    assert out.read_text(encoding="utf-8") == "+Окленд. В старом з+амке сломался зам+ок.\n"
     review = checklist.read_text(encoding="utf-8")
     assert review.startswith("Words to check: 2")
     assert "**з+амке**" in review and "(or: замк+е)" in review

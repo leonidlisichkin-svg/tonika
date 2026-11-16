@@ -57,9 +57,9 @@ def test_yo_is_restored() -> None:
 
 
 def test_author_marks_and_dictionary_win() -> None:
-    dictionary = UserDictionary.parse("Окл+енд\nз+амок\n")
+    dictionary = UserDictionary.parse("+Окленд\nз+амок\n")
     out = annotate("зам+ок, замок и Окленд", target="plus", dictionary=dictionary)
-    assert out == "зам+ок, з+амок и Окл+енд"
+    assert out == "зам+ок, з+амок и +Окленд"
 
 
 def test_a_long_script_goes_through() -> None:

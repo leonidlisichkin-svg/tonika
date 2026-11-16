@@ -25,10 +25,19 @@ One JSON object per line: a sentence, the position of one word, and its correct 
 Rules: the sentence is your own or comes from a CC0 source; one target word per record; several
 records may share a sentence.
 
-## 2. Golden sets — `data/golden/<lang>.jsonl` (CC0-1.0, Phase 1)
+## 2. Golden sets — `data/golden/` (CC0-1.0)
 
-Same record format as examples. Never used for training. A release is blocked if accuracy on its
-golden set drops.
+Held-out sentences for measuring a language pack. Never used for training, and no rule is ever
+written for one of them. CI fails when accuracy falls below the floor in `baseline.json`.
+
+Two file formats are accepted by `tonika eval`:
+
+- `<name>.txt`: one sentence per line, each tested word marked with `+` before its stressed
+  vowel (`Дверь заперта на зам+ок.`). Lines starting with `#` are comments. A marked ё also tests
+  that ё is restored: the pack receives the word with е.
+- `<name>.jsonl`: the example record format of section 1.
+
+`data/golden/ru.txt` holds 377 targets: homographs and ё-words, the hard cases only.
 
 ## 3. Lexicon — `data/lexicon/<lang>/` (terms of each source)
 

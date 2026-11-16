@@ -9,7 +9,7 @@ from tonika.document import Token
 
 SAMPLE = """
 # names and places
-Окл+енд            # a city
++Окленд            # a city
 Лис+ичкин*
 Корол+ёв
 Н+овая Зел+андия
@@ -27,8 +27,8 @@ def shown(tokens: list[Token]) -> list[tuple[str, str, tuple[int, ...]]]:
 
 def test_word_entry_matches_any_case() -> None:
     assert shown(find("Окленд и ОКЛЕНД, но не Оклендский.")) == [
-        ("Окленд", "Окленд", (3,)),
-        ("ОКЛЕНД", "ОКЛЕНД", (3,)),
+        ("Окленд", "Окленд", (0,)),
+        ("ОКЛЕНД", "ОКЛЕНД", (0,)),
     ]
 
 
@@ -105,7 +105,7 @@ def test_empty_dictionary() -> None:
 def test_load_merges_files(tmp_path: Path) -> None:
     first = tmp_path / "a.dic"
     second = tmp_path / "b.dic"
-    first.write_text("з+амок\nОкл+енд\n", encoding="utf-8")
+    first.write_text("з+амок\n+Окленд\n", encoding="utf-8")
     second.write_text("зам+ок\n", encoding="utf-8")
     dictionary = UserDictionary.load(first, second)
     assert len(dictionary) == 2
@@ -135,10 +135,18 @@ def test_replacement_is_rendered_in_every_notation() -> None:
     )
 
 
+def test_the_example_dictionary_works() -> None:
+    example = Path(__file__).parent.parent / "data" / "dictionaries" / "example.txt"
+    text = "Королев и Верещагина прилетели в Окленд, в отель JW Marriott."
+    assert annotate(text, target="plus", pack="fake", dictionary=example) == (
+        "Корол+ёв и Верещ+агина прилетели в +Окленд, в отель Джей-Д+абл-ю М+арриотт."
+    )
+
+
 def test_dictionary_can_be_a_path(tmp_path: Path) -> None:
     path = tmp_path / "names.dic"
-    path.write_text("Окл+енд\n", encoding="utf-8")
-    assert annotate("Окленд", target="upper", pack="fake", dictionary=path) == "ОклЕнд"
+    path.write_text("Вайх+еке\n", encoding="utf-8")
+    assert annotate("Вайхеке", target="upper", pack="fake", dictionary=path) == "ВайхЕке"
 
 
 def test_author_mark_beats_the_dictionary() -> None:

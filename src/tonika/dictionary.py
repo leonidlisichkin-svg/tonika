@@ -3,11 +3,11 @@
 A dictionary is a plain text file, one entry per line::
 
     # names and places
-    Окл+енд                        stress: put + before the stressed vowel
+    +Окленд                        stress: put + before the stressed vowel
     Лис+ичкин*                     * also matches longer forms: Лисичкина, Лисичкину
     Корол+ёв                       restores ё when the text has Королев
     Н+овая Зел+андия               phrases work too
-    JW Marriott = Джей-Дабл-+ю Марри+отт    replacement: what the engine should read
+    JW Marriott = Джей-Д+абл-ю М+арриотт    replacement: what the engine should read
 
 Matching ignores letter case and treats ё and е as the same letter. A combining acute after the
 vowel works wherever + does. Later entries override earlier ones with the same key.
@@ -145,7 +145,7 @@ def _parse_line(line: str, where: str) -> DictionaryEntry:
         raise DictionaryError(f"{where}: no word in {line!r}")
     if not stress:
         raise DictionaryError(
-            f"{where}: no stress mark in {line!r}; put + before the stressed vowel, like Окл+енд"
+            f"{where}: no stress mark in {line!r}; put + before the stressed vowel, like зам+ок"
         )
     if prefix and not _is_single_word(letters):
         raise DictionaryError(f"{where}: an entry with * must be a single word")
