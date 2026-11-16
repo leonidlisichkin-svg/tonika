@@ -3,16 +3,20 @@
 A trial analyses the text once, renders it in every notation and every mode, and undoes each
 rendering with the Intent Document alone: the marks at the stressed letters it records, and the
 respellings it records. The result must be the input, character for character. The report also
-records the load a human would face (words to review) and what the run cost (speed, memory).
+records the load a human would face (words to review), what the run cost (speed, memory), the
+processor it ran on and a digest of every decision, so a change of output across machines shows.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
+import platform
 import re
 import sys
 import time
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from tonika.document import IntentDocument, Token
@@ -69,6 +73,14 @@ class TrialReport:
     checked: tuple[tuple[str, str], ...]
     """The (notation, mode) pairs that were rendered and undone."""
     difference: Difference | None
+    digest: str
+    """SHA-256 of the Intent Document's tokens: equal digests mean equal decisions."""
+    cpu: str
+    """The processor as the operating system names it, or "unknown"."""
+    isa: str
+    """The instruction set level the processor offers, such as "x86-64-v3", or "unknown"."""
+    document: IntentDocument | None = field(default=None, repr=False, compare=False)
+    """The Intent Document the trial checked; not part of the report itself."""
 
     @property
     def preserved(self) -> bool:
@@ -104,6 +116,9 @@ class TrialReport:
             "preserved": self.preserved,
             "first_difference": self.first_difference,
             "difference": None if self.difference is None else self.difference.to_dict(),
+            "digest": self.digest,
+            "cpu": self.cpu,
+            "isa": self.isa,
         }
 
     def to_markdown(self) -> str:
@@ -141,6 +156,8 @@ class TrialReport:
             f"| Speed | {self.chars_per_second:,.0f} characters per second |",
             f"| Peak memory | {memory} |",
             f"| Pack | `{self.model}` |",
+            f"| Processor | {self.cpu}, {self.isa} |",
+            f"| Digest of the decisions | `{self.digest}` |",
         ]
         return "\n".join(lines) + "\n"
 
@@ -165,6 +182,7 @@ def run_trial(
     document = analyze_with(pack, text)
     seconds = time.perf_counter() - started
 
+    cpu, isa = processor()
     checked = tuple((notation, mode) for notation in notations for mode in modes)
     difference = check_preserved(text, document, checked)
     return TrialReport(
@@ -180,7 +198,76 @@ def run_trial(
         peak_memory=_peak_memory(),
         checked=checked,
         difference=difference,
+        digest=token_digest(document),
+        cpu=cpu,
+        isa=isa,
+        document=document,
     )
+
+
+def token_digest(document: IntentDocument) -> str:
+    """SHA-256 of the document's tokens as compact JSON with sorted keys.
+
+    It covers the decisions only: not the text, the model string or any timing. Two machines
+    that decide every word alike give the same digest.
+    """
+    payload = json.dumps(
+        [token.to_dict() for token in document.tokens],
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def processor() -> tuple[str, str]:
+    """Name the processor and its instruction set level, from ``/proc/cpuinfo`` on Linux."""
+    try:
+        with open("/proc/cpuinfo", encoding="utf-8", errors="replace") as handle:
+            info = handle.read()
+    except OSError:
+        return "unknown", "unknown"
+    return parse_cpuinfo(info, platform.machine())
+
+
+# The x86-64 microarchitecture levels, as the Linux kernel spells the flags they require.
+_X86_LEVELS: tuple[tuple[str, frozenset[str]], ...] = (
+    ("x86-64-v2", frozenset({"cx16", "lahf_lm", "popcnt", "sse4_1", "sse4_2", "ssse3"})),
+    (
+        "x86-64-v3",
+        frozenset({"avx", "avx2", "bmi1", "bmi2", "f16c", "fma", "abm", "movbe", "xsave"}),
+    ),
+    ("x86-64-v4", frozenset({"avx512f", "avx512bw", "avx512cd", "avx512dq", "avx512vl"})),
+)
+# Extensions that change which arithmetic kernels onnxruntime picks.
+_X86_EXTRAS = ("avx512_vnni", "avx512_bf16", "avx_vnni", "amx_tile")
+_ARM_EXTRAS = ("sve", "sve2", "bf16", "i8mm")
+
+
+def parse_cpuinfo(info: str, machine: str = "") -> tuple[str, str]:
+    """Read the processor name and instruction set level from the text of ``/proc/cpuinfo``."""
+    fields: dict[str, str] = {}
+    for line in info.splitlines():
+        key, colon, value = line.partition(":")
+        key = key.strip().lower()
+        if colon and key not in fields:
+            fields[key] = value.strip()
+    name = fields.get("model name") or fields.get("hardware") or "unknown"
+    if "flags" in fields:
+        flags = set(fields["flags"].split())
+        level = "x86-64"
+        for candidate, required in _X86_LEVELS:
+            if not required <= flags:
+                break
+            level = candidate
+        extras = [flag for flag in _X86_EXTRAS if flag in flags]
+    elif "features" in fields:
+        flags = set(fields["features"].split())
+        level = machine or "arm"
+        extras = [flag for flag in _ARM_EXTRAS if flag in flags]
+    else:
+        return name, "unknown"
+    return name, level + (f" ({', '.join(extras)})" if extras else "")
 
 
 def check_preserved(

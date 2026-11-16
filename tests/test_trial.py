@@ -206,3 +206,84 @@ def test_cli_trial_fails_when_the_text_changes(
     path.write_text("Замок.", encoding="utf-8")
     assert main(["trial", str(path), "--pack", "fake"]) == 1
     assert "**NO**" in capsys.readouterr().out
+
+
+# Drift across machines ------------------------------------------------------------------------
+
+
+def test_the_digest_covers_the_decisions_and_nothing_else() -> None:
+    from dataclasses import replace
+
+    from tonika.trial import token_digest
+
+    document = analyze("В старом замке сломался замок.", pack="fake")
+    digest = token_digest(document)
+    assert len(digest) == 64
+    assert token_digest(replace(document, model="other")) == digest
+    changed = replace(document.tokens[0], reading=Reading(stress=(1,)))
+    assert token_digest(replace(document, tokens=(changed, *document.tokens[1:]))) != digest
+    first = run_trial("В старом замке сломался замок.", FakePack("ru"))
+    second = run_trial("В старом замке сломался замок.", FakePack("ru"))
+    assert first.digest == second.digest == digest
+
+
+INTEL = """processor\t: 0
+vendor_id\t: GenuineIntel
+model name\t: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz
+flags\t\t: fpu sse sse2 ssse3 cx16 sse4_1 sse4_2 popcnt lahf_lm avx avx2 bmi1 bmi2 f16c fma abm \
+movbe xsave avx512f avx512dq avx512cd avx512bw avx512vl avx512_vnni
+
+processor\t: 1
+model name\t: ignored, the first block counts
+"""
+AMD = """model name\t: AMD EPYC 7763 64-Core Processor
+flags\t\t: sse sse2 ssse3 cx16 sse4_1 sse4_2 popcnt lahf_lm avx avx2 bmi1 bmi2 f16c fma abm \
+movbe xsave
+"""
+ARM = """processor\t: 0
+BogoMIPS\t: 50.00
+Features\t: fp asimd evtstrm aes sve i8mm
+"""
+
+
+@pytest.mark.parametrize(
+    ("info", "machine", "expected"),
+    [
+        (
+            INTEL,
+            "x86_64",
+            (
+                "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+                "x86-64-v4 (avx512_vnni)",
+            ),
+        ),
+        (AMD, "x86_64", ("AMD EPYC 7763 64-Core Processor", "x86-64-v3")),
+        ("model name : Old\nflags : sse sse2\n", "x86_64", ("Old", "x86-64")),
+        (ARM, "aarch64", ("unknown", "aarch64 (sve, i8mm)")),
+        ("", "", ("unknown", "unknown")),
+    ],
+)
+def test_the_processor_is_read_from_cpuinfo(
+    info: str, machine: str, expected: tuple[str, str]
+) -> None:
+    from tonika.trial import parse_cpuinfo
+
+    assert parse_cpuinfo(info, machine) == expected
+
+
+def test_the_report_names_the_processor_and_the_digest() -> None:
+    report = run_trial("Замок.", FakePack("ru"))
+    data = report.to_dict()
+    assert {"digest", "cpu", "isa"} <= set(data)
+    assert "document" not in data
+    assert f"`{report.digest}`" in report.to_markdown()
+    assert "| Processor |" in report.to_markdown()
+
+
+def test_cli_trial_writes_the_document(tmp_path: Path) -> None:
+    text = tmp_path / "text.txt"
+    text.write_text("В старом замке сломался замок.\r\n", encoding="utf-8", newline="")
+    target = tmp_path / "doc.json"
+    assert main(["trial", str(text), "--pack", "fake", "--document", str(target)]) == 0
+    document = IntentDocument.from_json(target.read_text(encoding="utf-8"))
+    assert document.text == "В старом замке сломался замок.\r\n"
