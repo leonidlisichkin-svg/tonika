@@ -86,7 +86,8 @@ jobs:
         run: |
           set +e
           uv run tonika trial data/trials/ru/chekhov-lady-with-the-dog.txt --lang ru \
-            --document trial-document.json > trial.md 2> trial.log
+            --reference data/trials/reference.json --document trial-document.json \
+            > trial.md 2> trial.log
           echo "status=$?" >> "$GITHUB_OUTPUT"
           cat trial.md trial.log
           exit 0

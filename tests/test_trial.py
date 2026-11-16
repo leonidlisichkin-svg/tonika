@@ -11,7 +11,7 @@ from tonika.document import IntentDocument, Reading, Token
 from tonika.packs import FakePack
 from tonika.render import MODES, NOTATIONS
 from tonika.text import COMBINING_ACUTE
-from tonika.trial import check_preserved, restore, run_trial
+from tonika.trial import Reference, check_preserved, load_reference, restore, run_trial
 
 TRIAL = Path(__file__).parent.parent / "data" / "trials" / "ru" / "chekhov-lady-with-the-dog.txt"
 COMBINATIONS = [(notation, mode) for notation in NOTATIONS for mode in MODES]
@@ -287,3 +287,58 @@ def test_cli_trial_writes_the_document(tmp_path: Path) -> None:
     assert main(["trial", str(text), "--pack", "fake", "--document", str(target)]) == 0
     document = IntentDocument.from_json(target.read_text(encoding="utf-8"))
     assert document.text == "В старом замке сломался замок.\r\n"
+
+
+def _reference(words_marked: int, model: str = "fake-0", digest: str = "x" * 64) -> Reference:
+    return Reference(model=model, digest=digest, words_marked=words_marked)
+
+
+def test_the_same_decisions_as_the_reference_pass() -> None:
+    first = run_trial("В старом замке сломался замок.", FakePack("ru"))
+    report = run_trial(
+        "В старом замке сломался замок.",
+        FakePack("ru"),
+        reference=_reference(first.words_marked, digest=first.digest),
+    )
+    assert report.compared and report.drift == 0.0 and report.passed
+    assert "the same decisions" in report.to_markdown()
+
+
+DOORS = " ".join(["Дверь."] * 1001)  # the demo pack gives stress to every "дверь"
+
+
+@pytest.mark.parametrize(
+    ("expected", "passed"),
+    [(1001, True), (1000, True), (1002, True), (999, False), (1010, False)],
+)
+def test_drift_beyond_the_limit_fails(expected: int, passed: bool) -> None:
+    # 1,001 words given stress: one word off 1,000 is exactly 0.1%, two off 999 is over it.
+    report = run_trial(DOORS, FakePack("ru"), reference=_reference(expected))
+    assert report.words_marked == 1001
+    assert report.passed is passed
+    assert ("**OVER**" in report.to_markdown()) is not passed
+
+
+def test_a_reference_for_another_model_is_not_compared() -> None:
+    report = run_trial("Замок.", FakePack("ru"), reference=_reference(99, model="other"))
+    assert not report.compared and report.drift is None and report.passed
+    assert "not compared" in report.to_markdown()
+
+
+def test_cli_trial_fails_on_drift(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    text = tmp_path / "text.txt"
+    text.write_text("В старом замке сломался замок.", encoding="utf-8")
+    reference = tmp_path / "reference.json"
+    entry = {"model": "fake-0", "digest": "x", "words_marked": 40}
+    reference.write_text(json.dumps({"text.txt": entry}), encoding="utf-8")
+    assert main(["trial", str(text), "--pack", "fake", "--reference", str(reference)]) == 1
+    assert "**OVER**" in capsys.readouterr().out
+    reference.write_text(json.dumps({"other.txt": entry}), encoding="utf-8")
+    assert main(["trial", str(text), "--pack", "fake", "--reference", str(reference)]) == 0
+
+
+def test_the_reference_file_names_the_trial_text() -> None:
+    reference = load_reference(TRIAL.parent.parent / "reference.json", TRIAL.name)
+    assert reference is not None
+    assert reference.model.startswith("stressonnx-")
+    assert len(reference.digest) == 64

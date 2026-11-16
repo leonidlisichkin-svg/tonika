@@ -18,7 +18,7 @@ from tonika.packs import DemoPackWarning, LanguagePack, PackError, UnknownPackEr
 from tonika.pipeline import analyze_with, default_mode
 from tonika.render import MODES, NOTATIONS, render
 from tonika.review import review
-from tonika.trial import run_trial
+from tonika.trial import load_reference, run_trial
 
 _ERRORS = (
     UnknownPackError,
@@ -116,6 +116,13 @@ def build_parser() -> argparse.ArgumentParser:
     trial.add_argument("--pack", default="auto", help="language pack (default: auto)")
     trial.add_argument(
         "--format", choices=("md", "json"), default="md", help="report format (default: md)"
+    )
+    trial.add_argument(
+        "--reference",
+        type=Path,
+        metavar="FILE",
+        help="JSON file of reference results; exit with 1 when words given stress drift from "
+        "the reference for the same model by more than 0.1%%",
     )
     trial.add_argument(
         "--document",
@@ -227,7 +234,8 @@ def _eval(args: argparse.Namespace) -> int:
 
 def _trial(args: argparse.Namespace) -> int:
     text = _read(args.file)
-    report = run_trial(text, _pack(args.lang, args.pack), name=args.file.name)
+    reference = None if args.reference is None else load_reference(args.reference, args.file.name)
+    report = run_trial(text, _pack(args.lang, args.pack), name=args.file.name, reference=reference)
     if args.document is not None and report.document is not None:
         with args.document.open("w", encoding="utf-8", newline="") as handle:
             handle.write(report.document.to_json() + "\n")
@@ -235,7 +243,7 @@ def _trial(args: argparse.Namespace) -> int:
         sys.stdout.write(json.dumps(report.to_dict(), ensure_ascii=False, indent=2) + "\n")
     else:
         sys.stdout.write(report.to_markdown())
-    return 0 if report.preserved else 1
+    return 0 if report.passed else 1
 
 
 def _engines() -> int:

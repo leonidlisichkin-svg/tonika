@@ -95,6 +95,9 @@ string names everything that determines the result:
 every notation and mode, and undoes each rendering from the Intent Document alone: the result
 must be the input exactly. It also records speed, memory and the number of words to review.
 CI runs it on the public-domain text in `data/trials/`; results are in `docs/TRIALS.md`.
+The report names the processor and a digest of every decision. With `--reference` it compares
+with a run of the same model on another machine and fails when the words given stress drift
+by more than 0.1% (D-021): a neural backend can tip close decisions on another processor.
 
 ## Renderers
 

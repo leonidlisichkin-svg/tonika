@@ -17,6 +17,7 @@ import sys
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from tonika.document import IntentDocument, Token
@@ -26,6 +27,35 @@ from tonika.render import MODES, NOTATIONS, render
 from tonika.text import COMBINING_ACUTE, PLUS, iter_words, split_marks
 
 _CONTEXT = 20
+
+DRIFT_LIMIT = 0.001
+"""The largest share of words given stress by which a run may differ from its reference."""
+
+
+@dataclass(frozen=True, slots=True)
+class Reference:
+    """What a trial gave on a reference machine, to measure drift on another one."""
+
+    model: str
+    digest: str
+    words_marked: int
+    machine: str = ""
+    date: str = ""
+
+
+def load_reference(path: str | Path, name: str) -> Reference | None:
+    """Read the reference for the trial text ``name`` from a JSON file, if it has one."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    entry = data.get(name) if isinstance(data, dict) else None
+    if not isinstance(entry, dict):
+        return None
+    return Reference(
+        model=str(entry["model"]),
+        digest=str(entry["digest"]),
+        words_marked=int(entry["words_marked"]),
+        machine=str(entry.get("machine", "")),
+        date=str(entry.get("date", "")),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,8 +109,36 @@ class TrialReport:
     """The processor as the operating system names it, or "unknown"."""
     isa: str
     """The instruction set level the processor offers, such as "x86-64-v3", or "unknown"."""
+    reference: Reference | None = None
+    """The run to compare with; used only when it names the same model."""
     document: IntentDocument | None = field(default=None, repr=False, compare=False)
     """The Intent Document the trial checked; not part of the report itself."""
+
+    @property
+    def compared(self) -> bool:
+        """True when a reference for the same model was given."""
+        return self.reference is not None and self.reference.model == self.model
+
+    @property
+    def drift(self) -> float | None:
+        """How far words given stress differ from the reference, as a share of its count.
+
+        A net difference: a word gained and another lost cancel out. The digest tells whether
+        anything differs at all.
+        """
+        if self.reference is None or not self.compared:
+            return None
+        expected = self.reference.words_marked
+        return abs(self.words_marked - expected) / expected if expected else 0.0
+
+    @property
+    def within_drift_limit(self) -> bool:
+        return self.drift is None or self.drift <= DRIFT_LIMIT
+
+    @property
+    def passed(self) -> bool:
+        """Preserved, and no further from the reference than the drift limit allows."""
+        return self.preserved and self.within_drift_limit
 
     @property
     def preserved(self) -> bool:
@@ -119,6 +177,13 @@ class TrialReport:
             "digest": self.digest,
             "cpu": self.cpu,
             "isa": self.isa,
+            "reference_digest": None if self.reference is None else self.reference.digest,
+            "same_as_reference": None
+            if not self.compared or self.reference is None
+            else self.digest == self.reference.digest,
+            "drift": None if self.drift is None else round(self.drift, 6),
+            "drift_limit": DRIFT_LIMIT,
+            "passed": self.passed,
         }
 
     def to_markdown(self) -> str:
@@ -158,8 +223,27 @@ class TrialReport:
             f"| Pack | `{self.model}` |",
             f"| Processor | {self.cpu}, {self.isa} |",
             f"| Digest of the decisions | `{self.digest}` |",
+            *self._reference_rows(),
         ]
         return "\n".join(lines) + "\n"
+
+    def _reference_rows(self) -> list[str]:
+        reference = self.reference
+        if reference is None:
+            return []
+        where = ", ".join(part for part in (reference.machine, reference.date) if part)
+        label = f"| Against the reference ({where}) |" if where else "| Against the reference |"
+        if not self.compared:
+            return [f"{label} not compared: it is for `{reference.model}` |"]
+        if self.digest == reference.digest:
+            return [f"{label} the same decisions (digests match) |"]
+        delta = self.words_marked - reference.words_marked
+        verdict = "within" if self.within_drift_limit else "**OVER**"
+        drift = self.drift or 0.0
+        return [
+            f"{label} decisions differ: {delta:+,} words given stress ({drift:.3%}), "
+            f"{verdict} the limit of {DRIFT_LIMIT:.1%} |"
+        ]
 
 
 def run_trial(
@@ -169,6 +253,7 @@ def run_trial(
     name: str = "",
     notations: Sequence[str] = NOTATIONS,
     modes: Sequence[str] = MODES,
+    reference: Reference | None = None,
 ) -> TrialReport:
     """Analyse ``text`` with ``pack`` once and check every rendering of it.
 
@@ -201,6 +286,7 @@ def run_trial(
         digest=token_digest(document),
         cpu=cpu,
         isa=isa,
+        reference=reference,
         document=document,
     )
 

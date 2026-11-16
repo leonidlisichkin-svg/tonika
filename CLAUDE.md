@@ -36,8 +36,11 @@ Russian word stress and ё. Vision: `docs/VISION.md`. Plan: `docs/ROADMAP.md`.
 2. Language packs are plugins behind `tonika.packs.base.LanguagePack`. Do not write stress
    models from scratch; wrap the best open ones. Every backend must be swappable.
 3. Local-first: the library works offline in the user's process. Any API is a thin wrapper.
-4. Deterministic: same text and same model version give the same output. Every result names its
-   model and data version.
+4. Deterministic: Tonika's own code gives bit-identical output on any machine. A neural backend
+   gives identical output on the same machine and may differ across processors in close
+   decisions; CI records the processor and the output digest, and such drift must stay under
+   0.1% of words given stress on the trial text (D-021). Every result names its model and data
+   version.
 5. Stress marks already in the input are the author's intent. Keep their reading; change only
    their notation to the target's.
 6. Offsets are code-point indices into the NFC-normalised input.
