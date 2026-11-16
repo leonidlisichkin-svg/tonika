@@ -10,20 +10,31 @@ Claude Code, the project with its Russian pack and models.
 
 1. On the repository page press **Code**, choose the **Codespaces** tab, press
    **Create codespace on main**.
-2. Wait. The first start takes several minutes: the container is built, the dependencies are
-   installed and the Russian models (about 500 MB) are downloaded. The terminal at the bottom
-   ends with `Tonika is ready.`
+2. Wait a few minutes. The window opens early, reloads once by itself, and the terminal at the
+   bottom shows `Running postCreateCommand…` while the dependencies and the Russian models (about
+   500 MB) are installed. It is ready when that terminal is replaced by an ordinary prompt
+   ending in `$`. Do not type commands before that.
 3. Next time, open the same codespace from the same **Codespaces** tab: it starts in seconds and
    everything is where you left it.
 
 ## Start Claude Code
 
-1. Press the Spark icon: at the top right of the editor while a file is open, or in the bar on
-   the left edge, where it is always visible.
-2. The first time, sign in with your Claude account in the browser tab that opens. If the tab
-   shows a code, copy it and paste it where VS Code asks for it.
-3. Choose the model with `/model`.
-4. Write what you want. To take the next task from the plan, write: **«Продолжай по плану»**.
+1. Press the Claude icon (an orange spark) in the bar on the left edge. It appears once the
+   setup above has finished.
+2. The first time, press the sign-in button and then **Authorize** in the browser tab that opens.
+3. If that tab then says **"This site can't be reached"** at an address starting with
+   `localhost`, the sign-in is one step from done. The answer was sent to your own computer, and
+   Claude is waiting for it on the codespace. Hand it over:
+   - click the address bar of that tab and copy the whole address (Ctrl+C);
+   - go back to the codespace tab and click in the terminal after the `$`;
+   - type `curl "`, paste the address (Ctrl+V), type `"`, press Enter.
+
+   The Claude panel now shows your account.
+4. Press **New session**, choose the model with `/model`, and write what you want. To take the
+   next task from the plan, write: **«Продолжай по плану»**.
+
+The **Chat** panel on the right edge belongs to GitHub Copilot, not to Claude. Close it with
+the cross in its corner.
 
 Claude reads [`CLAUDE.md`](../CLAUDE.md) at the start of every conversation: the rules of the
 project, the commands, and how a session ends (one small pull request with green CI).
@@ -32,7 +43,7 @@ The same Claude Code runs in the terminal as `claude`, with the same sign-in.
 
 ## Try Tonika
 
-In the terminal (**Terminal → New Terminal**):
+Click in the terminal, paste a line, press Enter:
 
 ```bash
 uv run tonika annotate --target plus "В старом замке сломался замок."
@@ -40,6 +51,9 @@ uv run pytest -m "not models"          # offline tests, a few seconds
 uv run pytest -m models                # tests with the real models
 uv run tonika eval data/golden/ru.txt  # accuracy on the golden set
 ```
+
+The first line answers `В старом з+амке сломался зам+ок.` A long warning from `onnxruntime`
+about `GetPciBusId` above the answer is harmless.
 
 To run a script of your own, drag the text file into the file list on the left, then:
 

@@ -95,3 +95,11 @@ VS Code in the browser, with Python, uv, Node and Claude Code set up by `.devcon
 Real models run there, unlike in the Claude Code cloud sandbox. The free allowance of a personal
 GitHub account is 120 core-hours a month: 60 hours on the default 2-core machine. Supersedes
 "he works from a phone" in the first `CLAUDE.md`.
+
+## D-019 · 2026-11-17 · Two roles: the conductor and the Codespace
+Strategy and briefs are made in a Claude chat with Leo (the conductor), which sees the plan but
+not the machine. Code is written by Claude Code in the Codespace, one brief per pull request.
+The repository is the only source of truth: a brief from the conductor is saved under
+`docs/briefs/` before it is built, and the three closing lines of each session are what Leo
+carries back. The first Codespace was opened and signed in on this date; what was learnt is in
+`docs/CODESPACES.md`.
