@@ -1,0 +1,19 @@
+# Tonika user dictionary (example, CC0-1.0).
+# One entry per line. Text after # is a comment.
+# Put + before the stressed vowel. Letter case does not matter; ё and е match each other.
+#
+#   tonika annotate -f script.txt --dict data/dictionaries/example.txt
+
+# Places
++Окленд
+Ротор+уа
+Н+овая Зел+андия
+
+# A surname. The * also matches longer forms: Верещагина, Верещагину, Верещагиным.
+Верещ+агин*
+
+# Restores ё: the text may say Королев, the engine will read Королёв.
+Корол+ёв*
+
+# Replacement: what the engine should read instead of what is written.
+JW Marriott = Джей-Д+абл-ю М+арриотт

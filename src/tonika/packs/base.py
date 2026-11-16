@@ -2,18 +2,26 @@
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Literal, Protocol, runtime_checkable
 
 from tonika.document import Token
+
+Tier = Literal["A", "B", "C"]
+"""How much a pack knows. A: resolves words by context and knows which are ambiguous.
+B: dictionary or rule stress, no ambiguity. C: user dictionary only."""
+
+
+class PackError(RuntimeError):
+    """Raised when a language pack cannot load or run its models."""
 
 
 @runtime_checkable
 class LanguagePack(Protocol):
-    """Turns NFC-normalised text into tokens with pronunciation decisions.
+    """Turns clean, NFC-normalised text into tokens with pronunciation decisions.
 
-    A pack returns tokens only for words it has an opinion about, sorted by offset and with
-    offsets into the text it was given. The pipeline handles normalisation, author marks and
-    validation, so a pack can stay small.
+    A pack returns tokens only for words it has an opinion about, with offsets into the text
+    it was given. The pipeline removes the author's stress marks before calling the pack and
+    applies the user dictionary after it, so a pack can stay small.
     """
 
     @property
@@ -24,6 +32,11 @@ class LanguagePack(Protocol):
     @property
     def model(self) -> str:
         """Model and data version, recorded in every Intent Document."""
+        ...
+
+    @property
+    def tier(self) -> Tier:
+        """Coverage tier of this pack."""
         ...
 
     @property

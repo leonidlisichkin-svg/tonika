@@ -68,6 +68,13 @@ def test_spec_example_from_the_docs_is_valid() -> None:
     assert len(IntentDocument.from_dict(raw).tokens) == 2
 
 
+def test_confidence_is_optional() -> None:
+    document = make((lock(confidence=None),))
+    assert "confidence" not in document.to_dict()["tokens"][0]
+    assert IntentDocument.from_json(document.to_json()) == document
+    jsonschema.validate(document.to_dict(), SCHEMA)
+
+
 def test_token_properties() -> None:
     token = lock()
     assert token.is_ambiguous

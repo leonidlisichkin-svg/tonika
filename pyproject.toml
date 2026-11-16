@@ -25,8 +25,9 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-# Reserved for the Russian language pack (Phase 1). It will pull in stressonnx.
-ru = []
+# Real language models: Russian with homographs and ё, plus some 25 languages with
+# dictionary stress. The version is pinned because Tonika records it in every result.
+ru = ["stressonnx==0.0.2"]
 
 [project.scripts]
 tonika = "tonika.cli:main"
@@ -41,7 +42,6 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "jsonschema>=4.22",
-    "pyyaml>=6",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -62,8 +62,14 @@ python_version = "3.11"
 strict = true
 files = ["src"]
 
+[[tool.mypy.overrides]]
+module = ["stressonnx", "stressonnx.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
 addopts = "-ra --strict-markers"
 markers = [
     "models: needs real language models downloaded from the network; runs only in GitHub Actions",

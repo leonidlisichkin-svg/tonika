@@ -1,27 +1,31 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
-import yaml
 
 from tonika import NOTATIONS
-
-ENGINES = sorted((Path(__file__).parent.parent / "engines").glob("*.yaml"))
-REQUIRED = {"id", "name", "notation", "languages", "notes", "verified_by", "verified_on",
-            "source_url"}  # fmt: skip
+from tonika.engines import UnknownEngineError, get_engine, list_engines, resolve_target
 
 
-def test_there_are_presets() -> None:
-    assert ENGINES
+def test_presets_are_well_formed() -> None:
+    engines = list_engines()
+    assert {engine.id for engine in engines} >= {
+        "generic-acute",
+        "generic-upper",
+        "silero",
+        "yandex-speechkit",
+    }
+    for engine in engines:
+        assert engine.name and engine.notes
+        assert engine.notation in NOTATIONS
+        assert engine.languages
+        if engine.verified_by != "unverified":
+            assert engine.source_url, f"{engine.id}: a verified preset needs a source"
+            assert engine.verified_on, f"{engine.id}: a verified preset needs a date"
 
 
-@pytest.mark.parametrize("path", ENGINES, ids=lambda p: p.stem)
-def test_preset_is_well_formed(path: Path) -> None:
-    preset = yaml.safe_load(path.read_text(encoding="utf-8"))
-    assert set(preset) >= REQUIRED, f"missing: {REQUIRED - set(preset)}"
-    assert preset["id"] == path.stem
-    assert preset["notation"] in NOTATIONS
-    assert isinstance(preset["languages"], list) and preset["languages"]
-    if preset["verified_by"] != "unverified":
-        assert preset["source_url"], "a verified preset needs a source"
+def test_resolve_target() -> None:
+    assert resolve_target("plus") == "plus"
+    assert resolve_target("yandex-speechkit") == "plus"
+    assert get_engine("generic-upper").notation == "upper"
+    with pytest.raises(UnknownEngineError, match="choose a notation"):
+        resolve_target("unknown-engine")

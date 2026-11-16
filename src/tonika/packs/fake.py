@@ -9,7 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from tonika.document import Reading, Token, TokenKind
-from tonika.text import is_author_marked, iter_words, match_case
+from tonika.packs.base import Tier
+from tonika.text import iter_words, match_case
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,14 +63,16 @@ class FakePack:
         return "fake-0"
 
     @property
+    def tier(self) -> Tier:
+        return "A"
+
+    @property
     def demo(self) -> bool:
         return True
 
     def analyze(self, text: str) -> list[Token]:
         tokens: list[Token] = []
         for start, end, word in iter_words(text):
-            if is_author_marked(word):
-                continue
             entry = self._table.get(word.lower())
             if entry is None:
                 continue

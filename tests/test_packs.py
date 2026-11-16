@@ -8,17 +8,18 @@ from tonika.packs import (
     DemoPackWarning,
     FakePack,
     LanguagePack,
+    StressonnxPack,
     UnknownPackError,
     available_packs,
     get_pack,
 )
-from tonika.text import match_case
 
 
 def test_fake_pack_follows_the_protocol() -> None:
     pack = FakePack("ru")
     assert isinstance(pack, LanguagePack)
     assert pack.demo
+    assert pack.tier == "A"
     assert pack.model == "fake-0"
 
 
@@ -44,7 +45,7 @@ def test_fake_pack_rejects_unknown_language() -> None:
 
 
 def test_auto_falls_back_to_demo_pack_with_a_warning() -> None:
-    with pytest.warns(DemoPackWarning):
+    with pytest.warns(DemoPackWarning, match="tonika\\[ru\\]"):
         pack = get_pack("ru")
     assert pack.demo
 
@@ -57,18 +58,29 @@ def test_explicit_fake_pack_does_not_warn() -> None:
 
 def test_unknown_language_or_pack() -> None:
     with pytest.raises(UnknownPackError, match="no language pack"):
+        get_pack("xx")
+    with pytest.raises(UnknownPackError, match="demo pack has no table"):
         get_pack("xx", "fake")
     with pytest.raises(UnknownPackError, match="unknown pack"):
         get_pack("ru", "nope")
 
 
-def test_available_packs() -> None:
+def test_stressonnx_pack_when_it_is_not_installed() -> None:
+    with pytest.raises(UnknownPackError, match="not installed"):
+        get_pack("ru", "stressonnx")
     assert available_packs() == {"ru": ["fake"]}
 
 
-@pytest.mark.parametrize(
-    ("template", "word", "expected"),
-    [("все", "всё", "всё"), ("Все", "всё", "Всё"), ("ВСЕ", "всё", "ВСЁ"), ("Ab", "xyz", "Xyz")],
-)
-def test_match_case(template: str, word: str, expected: str) -> None:
-    assert match_case(template, word) == expected
+def test_auto_prefers_a_real_pack(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("tonika.packs._stressonnx_languages", lambda: frozenset({"ru", "uk"}))
+    monkeypatch.setattr("tonika.packs._INSTANCES", {})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        pack = get_pack("ru")
+    assert isinstance(pack, StressonnxPack)
+    assert get_pack("ru") is pack  # real packs are built once
+    assert get_pack("ru", "stressonnx:ruaccent") is not pack
+    assert isinstance(get_pack("uk", "stressonnx"), StressonnxPack)
+    assert available_packs() == {"ru": ["stressonnx", "fake"], "uk": ["stressonnx"]}
+    with pytest.raises(UnknownPackError, match="no model for 'xx'"):
+        get_pack("xx", "stressonnx")

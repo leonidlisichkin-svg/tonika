@@ -14,13 +14,18 @@ Mode = Literal["ambiguous", "all", "yo"]
 NOTATIONS: tuple[str, ...] = get_args(Notation)
 MODES: tuple[str, ...] = get_args(Mode)
 
+# Readings the author set by hand, in the text or in a dictionary. They are always marked.
+_FORCED_SOURCES = frozenset({"input", "user"})
+
 
 def render(document: IntentDocument, target: str = "acute", mode: str = "ambiguous") -> str:
     """Render ``document`` in a notation.
 
-    Notations: ``acute`` (за́мок), ``plus`` (з+амок), ``upper`` (зАмок), ``yo`` (respelling only).
+    Notations: ``acute`` (за́мок), ``plus`` (з+амок), ``upper`` (зАмок), ``yo`` (no stress marks).
     Modes: ``ambiguous`` marks only tokens with alternatives, ``all`` marks every token, ``yo``
-    applies respelling only. Respelling (все → всё) is applied in every mode. Text outside
+    marks none. Respelling (все → всё) is applied in every mode. Stress the author set, in the
+    text or in a dictionary, is marked in every mode and converted to the target notation; with
+    the ``yo`` notation, which has no stress marks, such words are copied as typed. Text outside
     tokens is copied unchanged, so the layout of the input survives.
     """
     if target not in NOTATIONS:
@@ -56,9 +61,11 @@ def mark_stress(word: str, indices: Iterable[int], notation: str) -> str:
 
 
 def _render_token(token: Token, target: str, mode: str) -> str:
-    surface = token.surface
-    if target == "yo" or mode == "yo" or not token.reading.stress:
-        return surface
-    if mode == "ambiguous" and not token.is_ambiguous:
-        return surface
-    return mark_stress(surface, token.reading.stress, target)
+    forced = token.source in _FORCED_SOURCES
+    if target == "yo":
+        return token.form if token.source == "input" else token.surface
+    if not token.reading.stress:
+        return token.surface
+    if forced or mode == "all" or (mode == "ambiguous" and token.is_ambiguous):
+        return mark_stress(token.surface, token.reading.stress, target)
+    return token.surface

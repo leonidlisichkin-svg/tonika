@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Claude Code: personal settings stay out of the repository
+.claude/settings.local.json
