@@ -36,6 +36,9 @@ Backend = Callable[[str], str]
 # In these languages a stress mark on a word's only vowel carries no information.
 _SINGLE_VOWEL_LANGS = frozenset({"ru", "uk", "be"})
 
+# In these languages ё is always stressed.
+_YO_LANGS = frozenset({"ru", "be"})
+
 
 class StressonnxPack:
     """Stress and ё for one language, decided by a stressonnx model.
@@ -151,6 +154,9 @@ class StressonnxPack:
                 for i in restored:
                     chars[i] = "Ё" if chars[i] == "Е" else "ё"
                 surface = "".join(chars)
+            if not marks and self._lang in _YO_LANGS and lower(surface).count("ё") == 1:
+                # The models often leave a word with ё unmarked: ё itself says where the stress is.
+                marks = (lower(surface).index("ё"),)
             if self._lang in _SINGLE_VOWEL_LANGS and count_vowels(surface) <= 1:
                 marks = ()
             reading = Reading(stress=marks, respell=surface if restored else None)

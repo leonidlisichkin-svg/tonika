@@ -84,6 +84,19 @@ def test_yo_is_restored_with_the_case_of_the_text() -> None:
     assert render(document, "plus", "yo") == "Ещё раз и ещё."
 
 
+def test_an_unmarked_word_with_yo_is_stressed_on_it() -> None:
+    backend = ScriptedBackend(
+        {"звезды": "звёзды", "звёзды": "звёзды", "трехколесный": "трёхколёсный"}
+    )
+    tokens = pack(backend).analyze("Звезды и звёзды, трехколесный.")
+    assert [(t.form, t.surface, t.reading.stress) for t in tokens] == [
+        ("Звезды", "Звёзды", (2,)),
+        ("звёзды", "звёзды", (2,)),
+        # Two ё: the pack does not guess which one carries the main stress.
+        ("трехколесный", "трёхколёсный", ()),
+    ]
+
+
 def test_yo_homograph_kept_as_written_offers_the_other_spelling() -> None:
     backend = ScriptedBackend({}, yo_homographs={"все": "всё", "берет": "берёт"})
     tokens = pack(backend).analyze("Все берет.")
