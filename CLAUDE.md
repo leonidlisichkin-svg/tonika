@@ -62,6 +62,7 @@ uv run pytest -m models                    # tests with real models (needs --ext
 uv run tonika annotate --target plus "В старом замке сломался замок."
 uv run tonika annotate -f script.txt --target yandex-speechkit --dict names.txt --review check.md
 uv run tonika eval data/golden/ru.txt --baseline data/golden/baseline.json
+uv run tonika trial data/trials/ru/chekhov-lady-with-the-dog.txt   # long text changed only by marks
 uv run tonika engines                      # list engine presets
 ```
 
@@ -89,9 +90,10 @@ src/tonika/engines/        TTS engine presets (CC0), one TOML per engine
 src/tonika/pipeline.py     analyze() and annotate(), the public entry points
 src/tonika/review.py       checklist of ambiguous words for a human
 src/tonika/evaluate.py     accuracy on marked examples
-src/tonika/cli.py          `tonika annotate`, `tonika eval`, `tonika engines`
+src/tonika/trial.py        long-text trial: the text survives every rendering
+src/tonika/cli.py          `tonika annotate`, `tonika eval`, `tonika trial`, `tonika engines`
 spec/                      JSON Schema of the Intent Document
-data/                      golden sets, examples, dictionaries, lexicons (see data/README.md)
+data/                      golden sets, examples, dictionaries, lexicons, trial texts (data/README.md)
 docs/                      vision, architecture, roadmap, decisions
 docs/specs/                contracts for upcoming work
 docs/briefs/               one ready task per pull request

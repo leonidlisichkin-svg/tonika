@@ -1,4 +1,4 @@
-"""Command line: ``tonika annotate``, ``tonika eval``, ``tonika engines``."""
+"""Command line: ``tonika annotate``, ``tonika eval``, ``tonika trial``, ``tonika engines``."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from tonika.packs import DemoPackWarning, LanguagePack, PackError, UnknownPackEr
 from tonika.pipeline import analyze_with, default_mode
 from tonika.render import MODES, NOTATIONS, render
 from tonika.review import review
+from tonika.trial import run_trial
 
 _ERRORS = (
     UnknownPackError,
@@ -101,6 +102,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evaluation.add_argument("--min-accuracy", type=float, help="fail below this accuracy (0 to 1)")
 
+    trial = commands.add_parser(
+        "trial",
+        help="run a long text through Tonika and check that only pronunciation marks change",
+        description=(
+            "Analyse a text once, render it in every notation and mode, and check that undoing "
+            "the marks and ё gives the text back exactly. Prints speed, memory and the number "
+            "of words to review. Exits with 1 when the text is not preserved."
+        ),
+    )
+    trial.add_argument("file", type=Path, help="UTF-8 text file")
+    trial.add_argument("--lang", default="ru", help="language tag (default: ru)")
+    trial.add_argument("--pack", default="auto", help="language pack (default: auto)")
+    trial.add_argument(
+        "--format", choices=("md", "json"), default="md", help="report format (default: md)"
+    )
+
     commands.add_parser("engines", help="list TTS engine presets")
     return parser
 
@@ -116,6 +133,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _annotate(args)
         if args.command == "eval":
             return _eval(args)
+        if args.command == "trial":
+            return _trial(args)
         return _engines()
     except OSError as exc:
         print(f"tonika: {exc.filename or 'file'}: {exc.strerror or exc}", file=sys.stderr)
@@ -186,6 +205,18 @@ def _eval(args: argparse.Namespace) -> int:
             verdict = "at or above" if passed else "**below**"
             sys.stdout.write(f"\nAccuracy is {verdict} the floor of {floor:.1%}.\n")
     return 0 if passed else 1
+
+
+def _trial(args: argparse.Namespace) -> int:
+    # newline="" keeps every line ending as it is in the file, so the check sees them too.
+    with args.file.open(encoding="utf-8", newline="") as handle:
+        text = handle.read()
+    report = run_trial(text, _pack(args.lang, args.pack), name=args.file.name)
+    if args.format == "json":
+        sys.stdout.write(json.dumps(report.to_dict(), ensure_ascii=False, indent=2) + "\n")
+    else:
+        sys.stdout.write(report.to_markdown())
+    return 0 if report.preserved else 1
 
 
 def _engines() -> int:

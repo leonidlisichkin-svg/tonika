@@ -14,9 +14,8 @@ Each unchecked item is one pull request. An item with a number has a ready brief
 - [x] Engine presets: Yandex SpeechKit, Silero, generic acute, generic upper
 - [x] CI: lint, type check, offline tests, proof command; `models` job
 - [x] Licence audit of planned components (`LICENSES.md`)
-- [ ] **0.1** Listening test: which notation does the channel's Fliki voice honour? (Leo)
 
-**Exit:** green CI, and the notation the Fliki voice honours is recorded in `DECISIONS.md`.
+**Exit:** green CI. **Closed** on 2026-11-17 (D-020).
 
 ## Phase 1 — Russian core and CLI
 
@@ -28,11 +27,12 @@ Each unchecked item is one pull request. An item with a number has a ready brief
 - [x] Evaluation harness: accuracy and speed, posted as a pull request comment, with a floor
 - [x] Long input: sentence chunks, constant memory
 - [x] Checklist of ambiguous words for a human (`--review`)
-- [ ] **1.1** Script trial: a real 30-minute script through the CLI, voiced; errors counted and
-      added to a second golden set from real scripts (Leo and the agent together)
-- [ ] **1.2** Compare the stressonnx Russian models on both golden sets; choose the default
+- [x] **1.1** Long-text trial: a 30-minute public-domain text through `tonika trial` in CI;
+      the text is preserved, and speed, memory and review load are recorded
+- [ ] **1.2** Compare the stressonnx Russian models on the golden set; choose the default
 
-**Exit:** a real 30-minute script passes through the CLI, is voiced, and its stress-error count is recorded.
+**Exit:** a 30-minute text passes through the CLI changed only by marks, and its numbers are
+recorded in `docs/TRIALS.md`.
 
 Measured on 2026-11-16: 92.3% (348 of 377) on the golden set, which holds only hard words.
 
@@ -48,7 +48,7 @@ Specs: `docs/specs/api-v1.md`, `docs/specs/web-editor.md`.
 - [ ] **2.4** Review flow: doubtful words, choosing a reading, personal dictionary
 - [ ] **2.5** One Docker image; hosting chosen with Leo at the start of the item
 
-**Exit:** a full episode prepared from a phone using only the web editor.
+**Exit:** a 30-minute text prepared from a phone using only the web editor.
 
 ## Phase 3 — Open dataset
 
