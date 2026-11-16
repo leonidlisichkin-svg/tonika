@@ -1,0 +1,51 @@
+name: Dev container
+
+# Builds the Codespace image exactly as GitHub Codespaces does and runs the project inside it,
+# so a broken environment is caught here and not when the maintainer opens a Codespace.
+
+on:
+  pull_request:
+    paths:
+      - ".devcontainer/**"
+      - ".github/workflows/devcontainer.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: devcontainer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build the Codespace and run Tonika inside
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the container and run the checks inside it
+        uses: devcontainers/ci@v0.3
+        with:
+          push: never
+          runCmd: |
+            set -euo pipefail
+            echo "--- tools"
+            python --version
+            uv --version
+            node --version
+            gh --version | head -1
+            claude --version
+            echo "--- offline checks"
+            uv run ruff check src tests
+            uv run mypy
+            uv run pytest -q -m "not models"
+            echo "--- the real Russian pack"
+            out="$(uv run tonika annotate --target plus "В старом замке сломался замок." 2>warnings.txt)"
+            cat warnings.txt
+            echo "$out"
+            if grep -q "demo" warnings.txt; then echo "The demo pack answered: the Russian pack is not installed"; exit 1; fi
+            test "$out" = "В старом з+амке сломался зам+ок."
