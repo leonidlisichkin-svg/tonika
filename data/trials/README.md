@@ -2,7 +2,9 @@
 
 Long public-domain texts that `tonika trial` runs through the whole pipeline, to prove that
 Tonika changes nothing but pronunciation marks and to record speed, memory and review load.
-They are not labelled for accuracy. Results: `docs/TRIALS.md`.
+They are not labelled for accuracy. Results: `docs/TRIALS.md`. `reference.json` holds, per
+text, what the default model gave in the Codespace: the model string, the digest of its
+decisions and the words given stress. CI measures drift against it (D-021).
 
 ## `ru/chekhov-lady-with-the-dog.txt`
 

@@ -26,6 +26,13 @@ What the numbers mean:
 - **ё restored** counts words in which an е became ё («ее» → «её»).
 - **Speed** is analysis only, after the models are loaded.
 - **Peak memory** is the resident memory of the whole process at its peak, models included.
+- **Processor** is the CPU and its x86-64 level as `/proc/cpuinfo` reports them ("unknown"
+  elsewhere). The level says which arithmetic kernels onnxruntime can use: v3 has AVX2, v4 adds
+  AVX-512.
+- **Digest** is a SHA-256 of the Intent Document's tokens: two runs with the same digest made
+  the same decision for every word.
+- **Against the reference** compares with `data/trials/reference.json`, the Codespace run of the
+  same model. CI fails when words given stress differ from it by more than 0.1% (D-021).
 
 ## 2026-11-16 · Chekhov, «Дама с собачкой» · stressonnx 0.0.2
 
@@ -57,12 +64,8 @@ Findings:
   dash or capital letter. No bug was found in the pipeline, so this trial brought no fix.
 - **Same model, different machine, slightly different answer.** One CI runner gave stress to
   3,181 words; another CI runner and the Codespace gave 3,183, with the same model string and
-  locked dependencies. On one machine the
-  result is stable: two runs agree, and so do one core and two cores. The likely cause is the
-  processor: onnxruntime picks different arithmetic kernels on different CPUs, which can tip a
-  close decision. This touches principle 4 (deterministic output) and is left for its own pull
-  request: save the Intent Document from both machines, find the two words, then decide whether
-  to pin onnxruntime's behaviour or to state determinism per machine.
+  locked dependencies. On one machine the result is stable: two runs agree, and so do one core
+  and two cores. Traced to its two words in the next trial; the rule is D-021.
 - The review load is about one word in sixteen: a 30-minute text gives a checklist of some 300
   words. That is the number to bring down in Phase 3 (corrections layer) and to show well in the
   Phase 2 review flow.
@@ -71,4 +74,40 @@ Findings:
 Found outside the pipeline: `tonika annotate -f` and standard input read text with Python's
 default newline handling, so a file with Windows line endings (CR LF) comes out with LF only.
 The pipeline itself keeps CR LF (`tonika trial` reads files as they are, and a test covers it).
-Harmless for speech, but it is a change to the text; left for its own pull request.
+Harmless for speech, but it is a change to the text. Fixed in the next trial's pull request.
+
+## 2026-11-16 · Drift traced to two words · pull request #6
+
+CI now saves the trial's Intent Document as a workflow artifact and names the processor. The
+first CI run of pull request #6 landed on a runner that drifts, and its document was compared
+with the Codespace's word by word.
+
+| | Codespace | CI runner |
+| --- | --- | --- |
+| Processor | AMD EPYC 7763, x86-64-v3 | Intel Xeon 6975P-C, x86-64-v4 (avx512_vnni, avx512_bf16, avx_vnni, amx_tile) |
+| Words given stress | 3,183 | 3,181 |
+| Digest | `2aaddee3ff094ce7…` | `187285c3dcc117b7…` |
+| Speed | 542 characters per second | 1,229 characters per second |
+
+The two words, both stressed correctly in the Codespace and left with no stress mark at all on
+the CI runner (the model judged that they need none):
+
+| Word | Sentence (shortened) | Codespace | CI runner |
+| --- | --- | --- | --- |
+| победах (character 2,892) | …ему вспомнились эти рассказы о легких **победах**, о поездках в горы… | поб+едах | победах (no mark) |
+| тайне (character 27,549) | Каждое личное существование держится на **тайне**, и, быть может… | т+айне | тайне (no mark) |
+
+Nothing else differs: same tokens, same readings, same alternatives. The drift is 2 of 3,183
+words given stress, 0.063%. The three CI runs of pull request #5 gave 3,183 twice and 3,181
+once; their processors were not recorded then. A later CI run of pull request #6 landed on an
+AMD EPYC 7763 runner, the Codespace's processor, and gave the reference digest exactly.
+
+A fix was looked for and not found. stressonnx 0.0.2 creates its onnxruntime sessions with no
+session options, and `make_stressor` accepts only the model, the language and a cache folder;
+it reads no environment variable. Thread count is not the cause: one core and two cores give
+the same digest. Pinning kernels would mean patching stressonnx, which we do not do. The rule is
+therefore D-021: exact on one machine, under 0.1% across processors, checked by CI.
+
+The CR LF finding above is fixed: `tonika annotate` keeps every line ending, from a file or
+standard input to `-o` or standard output. The trial text converted to CR LF goes through the
+command line and comes back byte for byte once the marks are undone.

@@ -29,10 +29,11 @@ Each unchecked item is one pull request. An item with a number has a ready brief
 - [x] Checklist of ambiguous words for a human (`--review`)
 - [x] **1.1** Long-text trial: a 30-minute public-domain text through `tonika trial` in CI;
       the text is preserved, and speed, memory and review load are recorded
-- [ ] **1.2** Compare the stressonnx Russian models on the golden set; choose the default
+- [x] **1.2** Compare the stressonnx Russian models on the golden set; choose the default
+      (`docs/ACCURACY.md`, D-022); line endings kept; cross-machine drift traced and bounded (D-021)
 
 **Exit:** a 30-minute text passes through the CLI changed only by marks, and its numbers are
-recorded in `docs/TRIALS.md`.
+recorded in `docs/TRIALS.md`. **Closed** on 2026-11-17.
 
 Measured on 2026-11-16: 92.3% (348 of 377) on the golden set, which holds only hard words.
 

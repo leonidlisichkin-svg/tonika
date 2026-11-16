@@ -110,3 +110,68 @@ def test_version(capsys: pytest.CaptureFixture[str]) -> None:
         main(["--version"])
     assert exit_info.value.code == 0
     assert __version__ in capsys.readouterr().out
+
+
+# Line endings ---------------------------------------------------------------------------
+
+CRLF_TEXT = "В старом замке\r\nсломался замок.\r\n\r\nВсе ушли.\rОдин CR.\n"
+
+
+def _tonika(*args: str, stdin: bytes = b"") -> bytes:
+    """Run the command line in a fresh process and return its standard output as bytes."""
+    import subprocess
+    import sys
+
+    done = subprocess.run(
+        [sys.executable, "-m", "tonika.cli", *args],
+        input=stdin,
+        capture_output=True,
+        check=True,
+    )
+    return done.stdout
+
+
+@pytest.mark.parametrize("source", ["file", "stdin"])
+@pytest.mark.parametrize("destination", ["stdout", "file"])
+def test_line_endings_come_back_byte_for_byte(
+    tmp_path: Path, source: str, destination: str
+) -> None:
+    raw = CRLF_TEXT.encode("utf-8")
+    args = ["annotate", "--pack", "fake", "--target", "yo", "--mode", "yo"]
+    stdin = b""
+    if source == "file":
+        (tmp_path / "in.txt").write_bytes(raw)
+        args += ["-f", str(tmp_path / "in.txt")]
+    else:
+        stdin = raw
+    if destination == "file":
+        args += ["-o", str(tmp_path / "out.txt")]
+    out = _tonika(*args, stdin=stdin)
+    got = (tmp_path / "out.txt").read_bytes() if destination == "file" else out
+    # Only "Все" became "Всё"; every CR and LF is where it was.
+    assert got == raw.replace("Все".encode(), "Всё".encode())
+
+
+def test_line_endings_survive_in_json(tmp_path: Path) -> None:
+    (tmp_path / "in.txt").write_bytes(CRLF_TEXT.encode("utf-8"))
+    out = _tonika("annotate", "--pack", "fake", "--format", "json", "-f", str(tmp_path / "in.txt"))
+    assert json.loads(out)["text"] == CRLF_TEXT
+
+
+TRIAL = Path(__file__).parent.parent / "data" / "trials" / "ru" / "chekhov-lady-with-the-dog.txt"
+
+
+@pytest.mark.parametrize("target", ["acute", "plus", "upper", "yo"])
+def test_the_trial_text_in_crlf_survives_the_command_line(tmp_path: Path, target: str) -> None:
+    from tonika.document import IntentDocument
+    from tonika.trial import restore
+
+    raw = TRIAL.read_bytes().replace(b"\n", b"\r\n")
+    source = tmp_path / "crlf.txt"
+    source.write_bytes(raw)
+    common = ["annotate", "--pack", "fake", "-f", str(source)]
+    assert main([*common, "--format", "json", "-o", str(tmp_path / "doc.json")]) == 0
+    assert main([*common, "--target", target, "--mode", "all", "-o", str(tmp_path / "out")]) == 0
+    document = IntentDocument.from_json((tmp_path / "doc.json").read_bytes().decode("utf-8"))
+    output = (tmp_path / "out").read_bytes().decode("utf-8")
+    assert restore(document, output, target).encode("utf-8") == raw

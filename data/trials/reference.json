@@ -1,0 +1,9 @@
+{
+  "chekhov-lady-with-the-dog.txt": {
+    "model": "stressonnx-0.0.2:ruaccent@b8ba7afd",
+    "digest": "2aaddee3ff094ce7fb9d74a015757568b2d6c4016812b3b83c081986b8a11e80",
+    "words_marked": 3183,
+    "machine": "Codespace, AMD EPYC 7763, x86-64-v3",
+    "date": "2026-11-16"
+  }
+}

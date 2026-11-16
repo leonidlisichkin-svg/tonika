@@ -114,3 +114,29 @@ Leo's decision. Tonika serves any TTS engine, so the plan no longer waits on one
 - Engine presets are verified by whoever uses that engine, who says so in `verified_by`.
 - The golden set from real text promised in D-016 now comes from the Phase 3 examples; there is
   no `ru-scripts.txt`.
+
+## D-021 · 2026-11-17 · Determinism: exact for Tonika, bounded for a neural backend
+The conductor's decision, adjusted to the evidence in `docs/TRIALS.md`. On the trial text, a CI
+runner with an Intel Xeon 6975P-C (x86-64-v4: AVX-512 and AMX) gave no stress to two words,
+«победах» and «тайне», that the Codespace (AMD EPYC 7763, x86-64-v3) and other runners stress
+correctly: 3,181 words given stress against 3,183, a drift of 0.063%. On one machine the output
+never changed, across runs and thread counts, and a CI runner with the Codespace's processor
+gave the same digest. onnxruntime picks its arithmetic kernels by
+processor, which tips close decisions. stressonnx 0.0.2 builds its sessions with no options and
+reads no settings, so nothing can be pinned without patching it, which we do not do.
+- Principle 4 now reads: Tonika's own code gives bit-identical output on any machine. A neural
+  backend gives identical output on the same machine and may differ across processors in close
+  decisions; CI records the processor and the output digest, and such drift must stay under 0.1%
+  of words given stress on the trial text.
+- CI enforces it: `tonika trial --reference data/trials/reference.json` fails when words given
+  stress differ from the reference for the same model by more than 0.1%. The measure is a net
+  count; the digest shows whether any decision differs at all. The reference is the Codespace
+  run, and it is replaced only together with the model string.
+- The trial's Intent Document is kept as a CI artifact for 30 days, so any drift can be traced
+  to its words.
+
+## D-022 · 2026-11-17 · `ruaccent` stays the default Russian model
+Measured in `docs/ACCURACY.md` for every stressonnx 0.0.2 model that serves Russian: `ruaccent`
+92.3% on the golden set, `simple` 23.1%, `silero` 9.8%. The rule (highest accuracy; within one
+point, fewer words to review, then faster and smaller) picks `ruaccent` with no tie to break.
+No stable stressonnx 0.0.3 exists, so D-015 stands. The floor stays at 0.90.

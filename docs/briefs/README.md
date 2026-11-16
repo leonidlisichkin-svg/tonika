@@ -5,7 +5,7 @@ One brief is one pull request. Take them in roadmap order; the number is the roa
 | Brief | Needs Leo |
 | --- | --- |
 | [1.1 Long-text trial](1.1-long-text-trial.md) | Nothing |
-| [1.2 Model comparison](1.2-model-comparison.md) | Nothing |
+| [1.2 Model choice and reproducibility](1.2-model-comparison.md) | Nothing |
 | [2.1 HTTP API](2.1-http-api.md) | Nothing |
 | [2.2 Browser core](2.2-browser-core.md) | Nothing |
 | [2.3 Editor screen](2.3-editor-screen.md) | A look on his phone |

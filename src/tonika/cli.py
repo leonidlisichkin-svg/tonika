@@ -18,7 +18,7 @@ from tonika.packs import DemoPackWarning, LanguagePack, PackError, UnknownPackEr
 from tonika.pipeline import analyze_with, default_mode
 from tonika.render import MODES, NOTATIONS, render
 from tonika.review import review
-from tonika.trial import run_trial
+from tonika.trial import load_reference, run_trial
 
 _ERRORS = (
     UnknownPackError,
@@ -117,16 +117,34 @@ def build_parser() -> argparse.ArgumentParser:
     trial.add_argument(
         "--format", choices=("md", "json"), default="md", help="report format (default: md)"
     )
+    trial.add_argument(
+        "--reference",
+        type=Path,
+        metavar="FILE",
+        help="JSON file of reference results; exit with 1 when words given stress drift from "
+        "the reference for the same model by more than 0.1%%",
+    )
+    trial.add_argument(
+        "--document",
+        type=Path,
+        metavar="FILE",
+        help="also write the Intent Document the trial checked to this file (JSON)",
+    )
 
     commands.add_parser("engines", help="list TTS engine presets")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    # Text passes through unchanged, line endings included: newline="" stops Python from turning
+    # CR LF into LF on input and LF into the system's line ending on output.
+    reconfigure = getattr(sys.stdin, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(newline="")
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
-            reconfigure(encoding="utf-8")
+            reconfigure(encoding="utf-8", newline="")
     args = build_parser().parse_args(argv)
     try:
         if args.command == "annotate":
@@ -155,6 +173,12 @@ def _pack(lang: str, name: str) -> LanguagePack:
     return pack
 
 
+def _read(path: Path) -> str:
+    """Read a UTF-8 file with every line ending kept as it is."""
+    with path.open(encoding="utf-8", newline="") as handle:
+        return handle.read()
+
+
 def _annotate(args: argparse.Namespace) -> int:
     if args.text is not None and args.file is not None:
         print("tonika: give text or --file, not both", file=sys.stderr)
@@ -164,7 +188,7 @@ def _annotate(args: argparse.Namespace) -> int:
     if args.text is not None:
         text, from_argument = args.text, True
     elif args.file is not None:
-        text, from_argument = args.file.read_text(encoding="utf-8"), False
+        text, from_argument = _read(args.file), False
     else:
         text, from_argument = sys.stdin.read(), False
 
@@ -180,7 +204,8 @@ def _annotate(args: argparse.Namespace) -> int:
     if args.review is not None:
         args.review.write_text(review(document), encoding="utf-8")
     if args.output is not None:
-        args.output.write_text(output, encoding="utf-8")
+        with args.output.open("w", encoding="utf-8", newline="") as handle:
+            handle.write(output)
     else:
         sys.stdout.write(output)
     return 0
@@ -208,15 +233,17 @@ def _eval(args: argparse.Namespace) -> int:
 
 
 def _trial(args: argparse.Namespace) -> int:
-    # newline="" keeps every line ending as it is in the file, so the check sees them too.
-    with args.file.open(encoding="utf-8", newline="") as handle:
-        text = handle.read()
-    report = run_trial(text, _pack(args.lang, args.pack), name=args.file.name)
+    text = _read(args.file)
+    reference = None if args.reference is None else load_reference(args.reference, args.file.name)
+    report = run_trial(text, _pack(args.lang, args.pack), name=args.file.name, reference=reference)
+    if args.document is not None and report.document is not None:
+        with args.document.open("w", encoding="utf-8", newline="") as handle:
+            handle.write(report.document.to_json() + "\n")
     if args.format == "json":
         sys.stdout.write(json.dumps(report.to_dict(), ensure_ascii=False, indent=2) + "\n")
     else:
         sys.stdout.write(report.to_markdown())
-    return 0 if report.preserved else 1
+    return 0 if report.passed else 1
 
 
 def _engines() -> int:

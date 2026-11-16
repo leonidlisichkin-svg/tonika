@@ -11,7 +11,7 @@ from tonika.document import IntentDocument, Reading, Token
 from tonika.packs import FakePack
 from tonika.render import MODES, NOTATIONS
 from tonika.text import COMBINING_ACUTE
-from tonika.trial import check_preserved, restore, run_trial
+from tonika.trial import Reference, check_preserved, load_reference, restore, run_trial
 
 TRIAL = Path(__file__).parent.parent / "data" / "trials" / "ru" / "chekhov-lady-with-the-dog.txt"
 COMBINATIONS = [(notation, mode) for notation in NOTATIONS for mode in MODES]
@@ -206,3 +206,139 @@ def test_cli_trial_fails_when_the_text_changes(
     path.write_text("Замок.", encoding="utf-8")
     assert main(["trial", str(path), "--pack", "fake"]) == 1
     assert "**NO**" in capsys.readouterr().out
+
+
+# Drift across machines ------------------------------------------------------------------------
+
+
+def test_the_digest_covers_the_decisions_and_nothing_else() -> None:
+    from dataclasses import replace
+
+    from tonika.trial import token_digest
+
+    document = analyze("В старом замке сломался замок.", pack="fake")
+    digest = token_digest(document)
+    assert len(digest) == 64
+    assert token_digest(replace(document, model="other")) == digest
+    changed = replace(document.tokens[0], reading=Reading(stress=(1,)))
+    assert token_digest(replace(document, tokens=(changed, *document.tokens[1:]))) != digest
+    first = run_trial("В старом замке сломался замок.", FakePack("ru"))
+    second = run_trial("В старом замке сломался замок.", FakePack("ru"))
+    assert first.digest == second.digest == digest
+
+
+INTEL = """processor\t: 0
+vendor_id\t: GenuineIntel
+model name\t: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz
+flags\t\t: fpu sse sse2 ssse3 cx16 sse4_1 sse4_2 popcnt lahf_lm avx avx2 bmi1 bmi2 f16c fma abm \
+movbe xsave avx512f avx512dq avx512cd avx512bw avx512vl avx512_vnni
+
+processor\t: 1
+model name\t: ignored, the first block counts
+"""
+AMD = """model name\t: AMD EPYC 7763 64-Core Processor
+flags\t\t: sse sse2 ssse3 cx16 sse4_1 sse4_2 popcnt lahf_lm avx avx2 bmi1 bmi2 f16c fma abm \
+movbe xsave
+"""
+ARM = """processor\t: 0
+BogoMIPS\t: 50.00
+Features\t: fp asimd evtstrm aes sve i8mm
+"""
+
+
+@pytest.mark.parametrize(
+    ("info", "machine", "expected"),
+    [
+        (
+            INTEL,
+            "x86_64",
+            (
+                "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+                "x86-64-v4 (avx512_vnni)",
+            ),
+        ),
+        (AMD, "x86_64", ("AMD EPYC 7763 64-Core Processor", "x86-64-v3")),
+        ("model name : Old\nflags : sse sse2\n", "x86_64", ("Old", "x86-64")),
+        (ARM, "aarch64", ("unknown", "aarch64 (sve, i8mm)")),
+        ("", "", ("unknown", "unknown")),
+    ],
+)
+def test_the_processor_is_read_from_cpuinfo(
+    info: str, machine: str, expected: tuple[str, str]
+) -> None:
+    from tonika.trial import parse_cpuinfo
+
+    assert parse_cpuinfo(info, machine) == expected
+
+
+def test_the_report_names_the_processor_and_the_digest() -> None:
+    report = run_trial("Замок.", FakePack("ru"))
+    data = report.to_dict()
+    assert {"digest", "cpu", "isa"} <= set(data)
+    assert "document" not in data
+    assert f"`{report.digest}`" in report.to_markdown()
+    assert "| Processor |" in report.to_markdown()
+
+
+def test_cli_trial_writes_the_document(tmp_path: Path) -> None:
+    text = tmp_path / "text.txt"
+    text.write_text("В старом замке сломался замок.\r\n", encoding="utf-8", newline="")
+    target = tmp_path / "doc.json"
+    assert main(["trial", str(text), "--pack", "fake", "--document", str(target)]) == 0
+    document = IntentDocument.from_json(target.read_text(encoding="utf-8"))
+    assert document.text == "В старом замке сломался замок.\r\n"
+
+
+def _reference(words_marked: int, model: str = "fake-0", digest: str = "x" * 64) -> Reference:
+    return Reference(model=model, digest=digest, words_marked=words_marked)
+
+
+def test_the_same_decisions_as_the_reference_pass() -> None:
+    first = run_trial("В старом замке сломался замок.", FakePack("ru"))
+    report = run_trial(
+        "В старом замке сломался замок.",
+        FakePack("ru"),
+        reference=_reference(first.words_marked, digest=first.digest),
+    )
+    assert report.compared and report.drift == 0.0 and report.passed
+    assert "the same decisions" in report.to_markdown()
+
+
+DOORS = " ".join(["Дверь."] * 1001)  # the demo pack gives stress to every "дверь"
+
+
+@pytest.mark.parametrize(
+    ("expected", "passed"),
+    [(1001, True), (1000, True), (1002, True), (999, False), (1010, False)],
+)
+def test_drift_beyond_the_limit_fails(expected: int, passed: bool) -> None:
+    # 1,001 words given stress: one word off 1,000 is exactly 0.1%, two off 999 is over it.
+    report = run_trial(DOORS, FakePack("ru"), reference=_reference(expected))
+    assert report.words_marked == 1001
+    assert report.passed is passed
+    assert ("**OVER**" in report.to_markdown()) is not passed
+
+
+def test_a_reference_for_another_model_is_not_compared() -> None:
+    report = run_trial("Замок.", FakePack("ru"), reference=_reference(99, model="other"))
+    assert not report.compared and report.drift is None and report.passed
+    assert "not compared" in report.to_markdown()
+
+
+def test_cli_trial_fails_on_drift(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    text = tmp_path / "text.txt"
+    text.write_text("В старом замке сломался замок.", encoding="utf-8")
+    reference = tmp_path / "reference.json"
+    entry = {"model": "fake-0", "digest": "x", "words_marked": 40}
+    reference.write_text(json.dumps({"text.txt": entry}), encoding="utf-8")
+    assert main(["trial", str(text), "--pack", "fake", "--reference", str(reference)]) == 1
+    assert "**OVER**" in capsys.readouterr().out
+    reference.write_text(json.dumps({"other.txt": entry}), encoding="utf-8")
+    assert main(["trial", str(text), "--pack", "fake", "--reference", str(reference)]) == 0
+
+
+def test_the_reference_file_names_the_trial_text() -> None:
+    reference = load_reference(TRIAL.parent.parent / "reference.json", TRIAL.name)
+    assert reference is not None
+    assert reference.model.startswith("stressonnx-")
+    assert len(reference.digest) == 64
