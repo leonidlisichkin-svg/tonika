@@ -38,21 +38,27 @@ Measured on 2026-11-16: 92.3% (348 of 377) on the golden set, which holds only h
 
 ## Phase 2 — Web editor and API
 
+Specs: `docs/specs/api-v1.md`, `docs/specs/web-editor.md`.
+
 - [ ] **2.1** HTTP API as the optional extra `api`: `tonika serve`, `POST /v1/annotate`,
-      `POST /v1/analyze`, `GET /v1/engines`, `GET /v1/languages`; no text stored
-- [ ] **2.2** Web editor shell: paste text, pick an engine, get marked text, copy
-- [ ] **2.3** Editor interactions: doubtful words highlighted, tap to switch the reading,
-      personal dictionary kept in the browser
-- [ ] **2.4** One Docker image; hosting chosen with Leo at the start of the item
+      `GET /v1/engines`, `GET /v1/languages`; no text stored
+- [ ] **2.2** Browser core: `render` in TypeScript proven identical to Python by shared test
+      vectors; block splitting; API client
+- [ ] **2.3** Editor screen: paste, progressive result, engine and mode, copy
+- [ ] **2.4** Review flow: doubtful words, choosing a reading, personal dictionary
+- [ ] **2.5** One Docker image; hosting chosen with Leo at the start of the item
 
 **Exit:** a full episode prepared from a phone using only the web editor.
 
 ## Phase 3 — Open dataset
 
-- [ ] **3.1** Example records: validators, `tonika data check`, a CI job over `data/examples/`
-- [ ] **3.2** Universal pack on decision lists, trained from examples, deterministic
-- [ ] **3.3** Corrections layer: learnt decision lists override the Russian model where they are sure
-- [ ] Contribution endpoint and review queue (spec: `docs/specs/dataset-loop.md`; storage chosen with Leo)
+Specs: `docs/specs/dataset-loop.md`, `docs/specs/decision-lists.md`.
+
+- [ ] **3.1** Example records: checks, `tonika data check`, a CI step over `data/examples/`
+- [ ] **3.2** Seed examples: 300 or more original sentences for frequent Russian homographs
+- [ ] **3.3** Decision lists: trainer and pack, deterministic, learnt from the examples
+- [ ] **3.4** Corrections layer: learnt rules override the Russian model where they are sure
+- [ ] Collection endpoint and review queue (storage chosen with Leo)
 - [ ] Daily bot pull request with accepted examples; first numbered data release
 
 **Exit:** a correction made in the editor changes the engine's answer within a day, visible in git history.
