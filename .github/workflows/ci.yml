@@ -81,6 +81,15 @@ jobs:
           echo "status=$?" >> "$GITHUB_OUTPUT"
           cat accuracy.md accuracy.log
           exit 0
+      - name: Long-text trial
+        id: trial
+        run: |
+          set +e
+          uv run tonika trial data/trials/ru/chekhov-lady-with-the-dog.txt --lang ru \
+            > trial.md 2> trial.log
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat trial.md trial.log
+          exit 0
       - name: Report
         if: always()
         env:
@@ -88,6 +97,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           TESTS: ${{ steps.tests.outputs.status }}
           ACCURACY: ${{ steps.accuracy.outputs.status }}
+          TRIAL: ${{ steps.trial.outputs.status }}
         run: |
           {
             if [ "$TESTS" = "0" ]; then
@@ -107,6 +117,14 @@ jobs:
               tail -n 40 accuracy.log
               echo '```'
             fi
+            echo
+            if [ -s trial.md ]; then cat trial.md; else
+              echo "**Long-text trial failed to run**"
+              echo
+              echo '```'
+              tail -n 40 trial.log
+              echo '```'
+            fi
           } > report.md
           cat report.md >> "$GITHUB_STEP_SUMMARY"
           if [ -n "$PR" ]; then
@@ -114,4 +132,4 @@ jobs:
               || gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file report.md \
               || echo "could not comment on the pull request"
           fi
-          test "$TESTS" = "0" && test "$ACCURACY" = "0"
+          test "$TESTS" = "0" && test "$ACCURACY" = "0" && test "$TRIAL" = "0"

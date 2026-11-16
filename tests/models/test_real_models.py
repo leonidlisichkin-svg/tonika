@@ -6,12 +6,15 @@ the models decide right is measured separately by ``tonika eval`` on the golden 
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from helpers import PROOF_TEXT
 from tonika import UserDictionary, analyze, annotate
 from tonika.packs import get_pack
 from tonika.text import fold
+from tonika.trial import check_preserved
 
 pytestmark = pytest.mark.models
 
@@ -67,6 +70,18 @@ def test_a_long_script_goes_through() -> None:
     out = annotate(text, target="plus")
     assert fold(out.replace("+", "")) == fold(text)
     assert out.count("ещё") == 150
+
+
+TRIAL = Path(__file__).parents[2] / "data" / "trials" / "ru" / "chekhov-lady-with-the-dog.txt"
+
+
+def test_the_trial_text_is_preserved_and_deterministic() -> None:
+    with TRIAL.open(encoding="utf-8", newline="") as handle:
+        text = handle.read()
+    first = analyze(text)
+    assert check_preserved(text, first) is None
+    assert sum(1 for token in first.tokens if token.is_ambiguous) > 0
+    assert analyze(text).to_json() == first.to_json()
 
 
 def test_other_languages_get_dictionary_stress() -> None:

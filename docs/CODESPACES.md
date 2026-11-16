@@ -50,6 +50,7 @@ uv run tonika annotate --target plus "В старом замке сломалс�
 uv run pytest -m "not models"          # offline tests, a few seconds
 uv run pytest -m models                # tests with the real models
 uv run tonika eval data/golden/ru.txt  # accuracy on the golden set
+uv run tonika trial data/trials/ru/chekhov-lady-with-the-dog.txt  # a long text, only marks change
 ```
 
 The first line answers `В старом з+амке сломался зам+ок.` A long warning from `onnxruntime`

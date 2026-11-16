@@ -4,8 +4,7 @@ One brief is one pull request. Take them in roadmap order; the number is the roa
 
 | Brief | Needs Leo |
 | --- | --- |
-| [0.1 Listening test](0.1-listening-test.md) | Five minutes of listening in Fliki |
-| [1.1 Script trial](1.1-script-trial.md) | A real script, a voiced episode, a list of wrong words |
+| [1.1 Long-text trial](1.1-long-text-trial.md) | Nothing |
 | [1.2 Model comparison](1.2-model-comparison.md) | Nothing |
 | [2.1 HTTP API](2.1-http-api.md) | Nothing |
 | [2.2 Browser core](2.2-browser-core.md) | Nothing |

@@ -8,11 +8,13 @@
 | Engine presets (`src/tonika/engines/*.toml`) | CC0-1.0 |
 | JSON Schema (`spec/`) | CC0-1.0 |
 | Lexicon files (`data/lexicon/`) | Terms of each source, stated in each file |
+| Trial texts (`data/trials/`) | Public domain; source and reason per file in `data/trials/README.md` |
 
 ## Third-party components
 
-Nothing third-party is stored in this repository or bundled in the Tonika wheel. The Russian pack
-installs its backend as an optional extra, and the backend downloads its models on first use.
+Nothing third-party is bundled in the Tonika wheel. The only third-party content stored in this
+repository is the public-domain trial text in `data/trials/`. The Russian pack installs its
+backend as an optional extra, and the backend downloads its models on first use.
 Every component must be listed here **before** it is used. Non-commercial licences are not allowed.
 
 | Component | Use | Licence | Status |
@@ -22,6 +24,7 @@ Every component must be listed here **before** it is used. Non-commercial licenc
 | onnxruntime, numpy, huggingface_hub, tokenizers (dependencies of stressonnx) | Model runtime | MIT, BSD-3-Clause, Apache-2.0, Apache-2.0 | In use with extra `ru` |
 | silero_stress vocabularies (via stressonnx) | Ukrainian, Belarusian and other languages, tier B | MIT | Available, not yet evaluated |
 | Wiktionary | Lexicon source | CC BY-SA 4.0 | Planned, own folder |
+| A. P. Chekhov, «Дама с собачкой» (1899), text via Russian Wikisource | Trial text `data/trials/ru/` | Public domain (author died 1904; published 1899) | In use; Wikisource notes removed |
 | Silero TTS models | Not used | CC BY-NC 4.0 | Excluded; only its notation is described in `src/tonika/engines/silero.toml` |
 
 Dev-only tools (pytest, ruff, mypy, jsonschema) are not distributed with Tonika.

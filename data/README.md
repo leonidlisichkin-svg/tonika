@@ -6,6 +6,7 @@
 | `examples/<lang>/` | Sentences with the correct reading of a word in context (JSONL, Phase 3) | CC0-1.0 |
 | `dictionaries/` | Example user dictionaries | CC0-1.0 |
 | `lexicon/<lang>/` | Words and all their possible readings | Terms of each source, stated per file |
+| `trials/<lang>/` | Long public-domain texts for `tonika trial`; not labelled for accuracy | Public domain, source per file in `trials/README.md` |
 
 Examples and golden sets are dedicated to the public domain under
 [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/), so anyone, including TTS vendors,
@@ -24,5 +25,15 @@ uv run tonika eval data/golden/ru.txt --baseline data/golden/baseline.json
 ```
 
 `golden/baseline.json` is the lowest accuracy CI accepts for each language.
+
+## Trial texts
+
+`trials/<lang>/` holds long texts whose authors died long ago, so they are in the public domain.
+`tonika trial` runs one through the whole pipeline and checks that only pronunciation marks
+changed. Where each text comes from and why it is free is in [`trials/README.md`](trials/README.md).
+
+```bash
+uv run tonika trial data/trials/ru/chekhov-lady-with-the-dog.txt
+```
 
 The record formats are described in [`docs/DATA_SPEC.md`](../docs/DATA_SPEC.md).

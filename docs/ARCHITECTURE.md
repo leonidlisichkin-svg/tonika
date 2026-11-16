@@ -91,6 +91,11 @@ string names everything that determines the result:
 `data/golden/ru.txt`, posts the report on the pull request and fails below the floor in
 `data/golden/baseline.json`. The golden set is held out: nothing is trained on it or tuned to it.
 
+`tonika trial <file>` (`trial.py`) runs a long text through the pipeline once, renders it in
+every notation and mode, and undoes each rendering from the Intent Document alone: the result
+must be the input exactly. It also records speed, memory and the number of words to review.
+CI runs it on the public-domain text in `data/trials/`; results are in `docs/TRIALS.md`.
+
 ## Renderers
 
 | Notation | Output | Rule |

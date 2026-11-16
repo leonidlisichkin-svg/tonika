@@ -103,3 +103,14 @@ The repository is the only source of truth: a brief from the conductor is saved 
 `docs/briefs/` before it is built, and the three closing lines of each session are what Leo
 carries back. The first Codespace was opened and signed in on this date; what was learnt is in
 `docs/CODESPACES.md`.
+
+## D-020 · 2026-11-17 · Engine-neutral: no engine, product or single user gates a phase
+Leo's decision. Tonika serves any TTS engine, so the plan no longer waits on one.
+- The Fliki listening test (roadmap 0.1) and the voiced script trial (old 1.1) are withdrawn.
+  Phase 0 closes on green CI. Item 1.1 becomes the long-text trial: a 30-minute public-domain
+  text runs through `tonika trial` in CI, which proves the text is changed only by
+  pronunciation marks and records speed, memory and review load in `docs/TRIALS.md`.
+- Every phase exit must be checkable by CI or by anyone with the repository.
+- Engine presets are verified by whoever uses that engine, who says so in `verified_by`.
+- The golden set from real text promised in D-016 now comes from the Phase 3 examples; there is
+  no `ru-scripts.txt`.
