@@ -14,6 +14,7 @@ Each unchecked item is one pull request. An item with a number has a ready brief
 - [x] Engine presets: Yandex SpeechKit, Silero, generic acute, generic upper
 - [x] CI: lint, type check, offline tests, proof command; `models` job
 - [x] Licence audit of planned components (`LICENSES.md`)
+
 **Exit:** green CI. **Closed** on 2026-11-17 (D-020).
 
 ## Phase 1 — Russian core and CLI
