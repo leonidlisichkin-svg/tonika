@@ -99,7 +99,8 @@ the CI runner (the model judged that they need none):
 
 Nothing else differs: same tokens, same readings, same alternatives. The drift is 2 of 3,183
 words given stress, 0.063%. The three CI runs of pull request #5 gave 3,183 twice and 3,181
-once; their processors were not recorded then.
+once; their processors were not recorded then. A later CI run of pull request #6 landed on an
+AMD EPYC 7763 runner, the Codespace's processor, and gave the reference digest exactly.
 
 A fix was looked for and not found. stressonnx 0.0.2 creates its onnxruntime sessions with no
 session options, and `make_stressor` accepts only the model, the language and a cache folder;

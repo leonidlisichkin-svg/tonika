@@ -120,7 +120,8 @@ The conductor's decision, adjusted to the evidence in `docs/TRIALS.md`. On the t
 runner with an Intel Xeon 6975P-C (x86-64-v4: AVX-512 and AMX) gave no stress to two words,
 «победах» and «тайне», that the Codespace (AMD EPYC 7763, x86-64-v3) and other runners stress
 correctly: 3,181 words given stress against 3,183, a drift of 0.063%. On one machine the output
-never changed, across runs and thread counts. onnxruntime picks its arithmetic kernels by
+never changed, across runs and thread counts, and a CI runner with the Codespace's processor
+gave the same digest. onnxruntime picks its arithmetic kernels by
 processor, which tips close decisions. stressonnx 0.0.2 builds its sessions with no options and
 reads no settings, so nothing can be pinned without patching it, which we do not do.
 - Principle 4 now reads: Tonika's own code gives bit-identical output on any machine. A neural
