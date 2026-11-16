@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import threading
 import warnings
 
 from tonika.packs.base import LanguagePack, PackError, Tier
@@ -25,6 +26,7 @@ _INSTALL_HINT = "install it with: pip install 'tonika[ru]'"
 
 # Real packs hold loaded models, so each is built once per process.
 _INSTANCES: dict[tuple[str, str | None], StressonnxPack] = {}
+_INSTANCES_LOCK = threading.Lock()
 
 
 class UnknownPackError(LookupError):
@@ -46,9 +48,10 @@ def _stressonnx_languages() -> frozenset[str]:
 
 def _stressonnx(lang: str, model: str | None) -> StressonnxPack:
     key = (lang, model)
-    if key not in _INSTANCES:
-        _INSTANCES[key] = StressonnxPack(lang, model)
-    return _INSTANCES[key]
+    with _INSTANCES_LOCK:
+        if key not in _INSTANCES:
+            _INSTANCES[key] = StressonnxPack(lang, model)
+        return _INSTANCES[key]
 
 
 def available_packs() -> dict[str, list[str]]:

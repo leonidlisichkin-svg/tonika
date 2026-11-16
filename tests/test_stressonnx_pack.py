@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from helpers import PROOF_TEXT, ScriptedBackend
+from helpers import PROOF_TEXT, FakeStressonnx, ScriptedBackend
 from tonika.document import Reading, Token
 from tonika.packs import LanguagePack, PackError, StressonnxPack
 from tonika.pipeline import analyze_with, default_mode
@@ -190,3 +190,53 @@ def test_backend_failure_becomes_a_pack_error() -> None:
 
     with pytest.raises(PackError, match="no network"):
         StressonnxPack("ru", backend=broken).analyze("замок")
+
+
+# Tier, model string and loading, with no download ---------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("model", "tier", "mode"),
+    [
+        (None, "A", "ambiguous"),
+        ("ruaccent", "A", "ambiguous"),
+        ("silero", "B", "all"),
+        ("simple", "B", "all"),
+    ],
+)
+def test_tier_follows_the_model(model: str | None, tier: str, mode: str) -> None:
+    pack = StressonnxPack("ru", model)
+    assert pack.tier == tier
+    assert default_mode(pack) == mode
+    assert pack._backend is None  # nothing was loaded
+
+
+def test_the_model_string_is_built_without_loading(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = FakeStressonnx(monkeypatch)
+    assert StressonnxPack("ru").model == "stressonnx-0.0.2:ruaccent@b8ba7afd"
+    assert StressonnxPack("ru", "simple").model == "stressonnx-0.0.2:simple@b8ba7afd"
+    assert StressonnxPack("uk").model == "stressonnx-0.0.2:silero@b8ba7afd"
+    assert fake.loads == 0
+
+
+def test_concurrent_requests_load_the_model_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    fake = FakeStressonnx(monkeypatch, delay=0.05)
+    pack = StressonnxPack("ru")
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(lambda _: pack.analyze("Замок."), range(16)))
+    assert fake.loads == 1
+    assert pack.model == "stressonnx-0.0.2:ruaccent@b8ba7afd"
+
+
+def test_concurrent_requests_share_one_pack(monkeypatch: pytest.MonkeyPatch) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    from tonika.packs import get_pack
+
+    monkeypatch.setattr("tonika.packs._stressonnx_languages", lambda: frozenset({"ru"}))
+    monkeypatch.setattr("tonika.packs._INSTANCES", {})
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        packs = list(pool.map(lambda _: get_pack("ru"), range(32)))
+    assert len({id(pack) for pack in packs}) == 1

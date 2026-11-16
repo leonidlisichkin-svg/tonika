@@ -140,3 +140,17 @@ Measured in `docs/ACCURACY.md` for every stressonnx 0.0.2 model that serves Russ
 92.3% on the golden set, `simple` 23.1%, `silero` 9.8%. The rule (highest accuracy; within one
 point, fewer words to review, then faster and smaller) picks `ruaccent` with no tie to break.
 No stable stressonnx 0.0.3 exists, so D-015 stands. The floor stays at 0.90.
+
+## D-023 · 2026-11-17 · HTTP API v1 as built
+Additions to `docs/specs/api-v1.md`, all compatible with clients written to the spec:
+- A body field the spec does not name is rejected with `422 invalid_request`, so a typo such as
+  `taget` is caught instead of silently ignored. New optional fields may still be added in v1.
+- Unknown routes and methods answer in the spec's error body, codes `not_found` and
+  `method_not_allowed`.
+- `tonika` in every response is the server's `tonika.__version__`.
+- The tier of a Russian pack follows its model: `ruaccent` is A; `silero` and `simple`, which do
+  not resolve homographs, are B, so their default mode is `all` (found in PR #6).
+- A pack names its model from package metadata and stressonnx's registry, without creating a
+  stressor, so `/v1/languages` answers in milliseconds and loads nothing.
+- FastAPI 0.163 brings `opentelemetry-api` as a dependency. It is an interface only and sends
+  nothing without an SDK, which Tonika does not install; it is listed in `LICENSES.md`.

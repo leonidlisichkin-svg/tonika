@@ -14,8 +14,10 @@ to stressonnx. Without them the pack still works and reports no alternatives.
 from __future__ import annotations
 
 import os
+import threading
 from collections.abc import Callable, Iterator, Mapping
 from importlib import metadata
+from typing import Any
 
 from tonika.document import Reading, Token
 from tonika.packs.base import PackError, Tier
@@ -38,6 +40,13 @@ _SINGLE_VOWEL_LANGS = frozenset({"ru", "uk", "be"})
 
 # In these languages ё is always stressed.
 _YO_LANGS = frozenset({"ru", "be"})
+
+# The models that resolve homographs from context, per language: they make a pack tier A.
+# The others (silero, simple) give dictionary stress and know no ambiguity: tier B.
+_CONTEXT_MODELS: dict[str, frozenset[str]] = {"ru": frozenset({"ruaccent"})}
+
+# stressonnx's default model per language, for when its registry cannot be read.
+_KNOWN_DEFAULTS: dict[str, str] = {"ru": "ruaccent"}
 
 
 class StressonnxPack:
@@ -68,6 +77,7 @@ class StressonnxPack:
         self._backend = backend
         self._model = f"stressonnx:{model or 'custom'}" if backend is not None else None
         self._max_chars = max_chars
+        self._load_lock = threading.Lock()
         self._peeked = False
         self._homographs: Mapping[str, object] | None = None
         self._yo_homographs: Mapping[str, object] | None = None
@@ -78,14 +88,15 @@ class StressonnxPack:
 
     @property
     def model(self) -> str:
+        """The model string, built from package metadata: reading it never loads a model."""
         if self._model is None:
-            self._load()
-        assert self._model is not None
+            self._model = self._describe()
         return self._model
 
     @property
     def tier(self) -> Tier:
-        return "A" if self._lang == "ru" else "B"
+        model_id = self._model_id or _default_model(self._lang)
+        return "A" if model_id in _CONTEXT_MODELS.get(self._lang, frozenset()) else "B"
 
     @property
     def demo(self) -> bool:
@@ -104,24 +115,29 @@ class StressonnxPack:
 
     # ------------------------------------------------------------------
 
-    def _load(self) -> Backend:
-        try:
-            import stressonnx
-        except ImportError as exc:
-            raise PackError(
-                "the stressonnx package is not installed; run: pip install 'tonika[ru]'"
-            ) from exc
-        try:
-            backend: Backend = stressonnx.make_stressor(model=self._model_id, lang=self._lang)
-        except ValueError as exc:
-            raise PackError(str(exc)) from exc
+    def _describe(self) -> str:
+        """Name the backend version, model id and model revision without creating a stressor."""
+        stressonnx = _import_stressonnx()
         model_id = self._model_id or stressonnx.DEFAULT_MODEL.get(self._lang, "default")
         revision = str(getattr(stressonnx.registry, "HF_REPO_REVISION", ""))[:8]
-        self._model = f"stressonnx-{metadata.version('stressonnx')}:{model_id}" + (
+        return f"stressonnx-{metadata.version('stressonnx')}:{model_id}" + (
             f"@{revision}" if revision else ""
         )
-        self._backend = backend
-        return backend
+
+    def _load(self) -> Backend:
+        # Requests may arrive on several threads at once; the model is loaded only once.
+        with self._load_lock:
+            if self._backend is not None:
+                return self._backend
+            stressonnx = _import_stressonnx()
+            try:
+                backend: Backend = stressonnx.make_stressor(model=self._model_id, lang=self._lang)
+            except ValueError as exc:
+                raise PackError(str(exc)) from exc
+            if self._model is None:
+                self._model = self._describe()
+            self._backend = backend
+            return backend
 
     def _run(self, chunk: str) -> str:
         backend = self._backend if self._backend is not None else self._load()
@@ -219,3 +235,23 @@ class StressonnxPack:
                         ]
                         add(yo_form, tuple(changed[:1]))
         return tuple(readings)
+
+
+def _import_stressonnx() -> Any:
+    try:
+        import stressonnx
+    except ImportError as exc:
+        raise PackError(
+            "the stressonnx package is not installed; run: pip install 'tonika[ru]'"
+        ) from exc
+    return stressonnx
+
+
+def _default_model(lang: str) -> str | None:
+    """stressonnx's default model id for ``lang``, read from its registry without loading."""
+    try:
+        from stressonnx.registry import DEFAULT_MODEL
+    except ImportError:
+        return _KNOWN_DEFAULTS.get(lang)
+    value = DEFAULT_MODEL.get(lang)
+    return str(value) if value is not None else _KNOWN_DEFAULTS.get(lang)

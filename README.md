@@ -76,6 +76,20 @@ print(doc.to_json())  # the Intent Document: every decision and the readings it 
 - **Other languages.** Ukrainian, Belarusian and others get dictionary stress without context
   (tier B) through the same backend. Only Russian is measured so far.
 
+## HTTP API
+
+```bash
+uv sync --extra ru --extra api
+uv run tonika serve                       # http://127.0.0.1:8000, interactive docs at /docs
+curl -s localhost:8000/v1/annotate -H 'content-type: application/json' \
+  -d '{"text":"В старом замке сломался замок.","target":"plus"}'
+# {"text":"В старом з+амке сломался зам+ок.", "model":"stressonnx-0.0.2:ruaccent@b8ba7afd", ...}
+```
+
+The answer is exactly what the library gives. Up to 20,000 characters a request; split longer
+texts at paragraph breaks. No text is stored or logged. Contract:
+[docs/specs/api-v1.md](docs/specs/api-v1.md).
+
 ## Develop
 
 Open the repository in a GitHub Codespace (the badge above): Python, uv and the models are set up

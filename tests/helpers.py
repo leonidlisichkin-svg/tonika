@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 
+import pytest
+
 from tonika.render import mark_stress
 from tonika.text import match_case, split_marks
 
@@ -55,3 +57,30 @@ class ScriptedBackend:
         if self.lossy:
             out = re.sub(r" ([,.!?:;])", r"\1", out)
         return out
+
+
+class FakeStressonnx:
+    """Stands in for the stressonnx package: a registry, and a loader that counts its calls."""
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch, delay: float = 0.0) -> None:
+        import sys
+        import time
+        import types
+
+        self.loads = 0
+        registry = types.ModuleType("stressonnx.registry")
+        registry.HF_REPO_REVISION = "b8ba7afdb78534afa1a7f4794b98d019c3866aef"  # type: ignore[attr-defined]
+        registry.DEFAULT_MODEL = {"ru": "ruaccent", "uk": "silero"}  # type: ignore[attr-defined]
+        package = types.ModuleType("stressonnx")
+        package.registry = registry  # type: ignore[attr-defined]
+        package.DEFAULT_MODEL = registry.DEFAULT_MODEL  # type: ignore[attr-defined]
+
+        def make_stressor(model: str | None = None, lang: str | None = None) -> object:
+            self.loads += 1
+            time.sleep(delay)
+            return lambda text: text
+
+        package.make_stressor = make_stressor  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "stressonnx", package)
+        monkeypatch.setitem(sys.modules, "stressonnx.registry", registry)
+        monkeypatch.setattr("tonika.packs.stressonnx.metadata.version", lambda name: "0.0.2")

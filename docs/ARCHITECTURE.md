@@ -99,6 +99,14 @@ The report names the processor and a digest of every decision. With `--reference
 with a run of the same model on another machine and fails when the words given stress drift
 by more than 0.1% (D-021): a neural backend can tip close decisions on another processor.
 
+## HTTP API
+
+`src/tonika/server/` (extra `api`) wraps `analyze_with` and `render` and adds no behaviour: for
+the same input and model it returns what the library returns. Handlers are plain functions in
+FastAPI's thread pool behind a semaphore of `TONIKA_PARALLEL`; all requests share one pack
+instance, which loads its model once. `/v1/languages` and `/healthz` never load a model: a
+pack names its model from package metadata. Contract: `docs/specs/api-v1.md`.
+
 ## Renderers
 
 | Notation | Output | Rule |

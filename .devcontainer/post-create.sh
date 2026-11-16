@@ -7,7 +7,7 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 # The project with its dev tools and the real Russian pack.
-uv sync --extra ru
+uv sync --extra ru --extra api
 
 # Download the Russian models now (about 500 MB from Hugging Face), so the first real command
 # answers at once. Not fatal: without them they download on first use.
