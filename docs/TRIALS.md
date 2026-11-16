@@ -46,10 +46,21 @@ was 541 characters per second both times, peak memory 687 and 660 MiB.
 | Peak memory | 660 MiB (whole process) |
 | Pack | `stressonnx-0.0.2:ruaccent@b8ba7afd` |
 
+The same day in CI (pull request #5, GitHub-hosted runner, image ubuntu-26.04, Python 3.13.18,
+the same locked dependencies): text preserved; 3,181 words given stress; 314 to review; 157 ё
+restored; 2,310 characters per second; 699 MiB.
+
 Findings:
 
 - Nothing in the text changed except marks and ё: no lost space, line break, non-breaking space,
-  dash or capital letter. No bug was found, so this trial brought no fix.
+  dash or capital letter. No bug was found in the pipeline, so this trial brought no fix.
+- **Same model, different machine, slightly different answer.** CI gave stress to 3,181 words,
+  the Codespace to 3,183, with the same model string and locked dependencies. On one machine the
+  result is stable: two runs agree, and so do one core and two cores. The likely cause is the
+  processor: onnxruntime picks different arithmetic kernels on different CPUs, which can tip a
+  close decision. This touches principle 4 (deterministic output) and is left for its own pull
+  request: save the Intent Document from both machines, find the two words, then decide whether
+  to pin onnxruntime's behaviour or to state determinism per machine.
 - The review load is about one word in sixteen: a 30-minute text gives a checklist of some 300
   words. That is the number to bring down in Phase 3 (corrections layer) and to show well in the
   Phase 2 review flow.
