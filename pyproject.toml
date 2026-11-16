@@ -27,7 +27,7 @@ dependencies = []
 [project.optional-dependencies]
 # Real language models: Russian with homographs and ё, plus some 25 languages with
 # dictionary stress. The version is pinned because Tonika records it in every result.
-ru = ["stressonnx==0.0.2"]
+ru = ["stressonnx==0.0.3a41"]
 
 [project.scripts]
 tonika = "tonika.cli:main"

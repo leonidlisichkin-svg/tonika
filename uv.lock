@@ -954,7 +954,7 @@ wheels = [
 
 [[package]]
 name = "stressonnx"
-version = "0.0.2"
+version = "0.0.3a41"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -963,9 +963,9 @@ dependencies = [
     { name = "onnxruntime" },
     { name = "tokenizers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b0/8e/3a745dd952928b4ec69031c6ab19389d3ba753ece7872f525265055576dc/stressonnx-0.0.2.tar.gz", hash = "sha256:dbfa4c027657678d841deda1f3a662fed2a59acd96164789e9730d7b15caf3d8", size = 67616, upload-time = "2026-07-22T22:17:01.319Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/b5/c8bb67babd0d9e9dd9159d8f566f38476631b024c0ad450a4963fce669d7/stressonnx-0.0.3a41.tar.gz", hash = "sha256:879e4bca3e30a34bfd394aef01403b2a097424e4d604fa92240a64f9a03c4f36", size = 152902, upload-time = "2026-11-12T09:57:34.839Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/75/0e3c1320666f46f0aa7804694f2eeb95f1371aac2af89088fa14a32f973b/stressonnx-0.0.2-py3-none-any.whl", hash = "sha256:5959df9baae016259f9d40e220dbcc4b58a1c224fc5f4f6134b98af1a2d977a2", size = 56986, upload-time = "2026-07-22T22:17:00.102Z" },
+    { url = "https://files.pythonhosted.org/packages/4f/10/e918f3e6f0b27140d86670db57ac4d9b3090bccb0dc0d14d69b03bbfe080/stressonnx-0.0.3a41-py3-none-any.whl", hash = "sha256:e98192fbd00f696da6700ff187285cfe7fe0dbaffc0d38fe569567aca2340462", size = 97197, upload-time = "2026-11-12T09:57:33.282Z" },
 ]
 
 [[package]]
@@ -1022,7 +1022,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "stressonnx", marker = "extra == 'ru'", specifier = "==0.0.2" }]
+requires-dist = [{ name = "stressonnx", marker = "extra == 'ru'", specifier = "==0.0.3a41" }]
 provides-extras = ["ru"]
 
 [package.metadata.requires-dev]
