@@ -74,6 +74,8 @@ jobs:
           exit 0
       - name: Accuracy on the golden set
         id: accuracy
+        env:
+          TONIKA_STRESSONNX_LOWERCASE: "0"
         run: |
           set +e
           uv run tonika eval data/golden/ru.txt --lang ru \
