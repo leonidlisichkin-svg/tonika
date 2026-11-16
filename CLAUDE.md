@@ -10,16 +10,23 @@ Russian word stress and ё. Vision: `docs/VISION.md`. Plan: `docs/ROADMAP.md`.
 - He works in a GitHub Codespace (VS Code in the browser) from a work computer and keeps nothing
   on a local machine. The environment is defined in `.devcontainer/`; see `docs/CODESPACES.md`.
   Everything must be verifiable through GitHub Actions and pull request comments.
-- Give him one concrete step at a time: the exact button to click or the phrase to type. Explain
-  results in plain words, then wait for his answer before the next step.
+- Give him one concrete step at a time, with no technical shorthand: which button and where it is
+  on the screen, which key to press, the exact line to paste. Explain results in plain words,
+  ask for a screenshot, and wait for his answer before the next step.
+- Two roles. A Claude chat outside this repository (the conductor) holds the strategy with Leo
+  and writes briefs. You, in the Codespace, carry them out. When Leo pastes a brief from the
+  conductor, save it under `docs/briefs/` in the same pull request and follow it like any other
+  brief. If it conflicts with this file, the code or the roadmap, say so before building.
 - One session = one small pull request with green CI. Branch from an up-to-date `main`, never push
-  to `main`. Leo merges.
+  to `main`. Leo merges: tell him the exact button.
 - Start every session by reading this file and `docs/ROADMAP.md`. Take the next unchecked item of
   the current phase and follow its brief in `docs/briefs/`. If the item has no brief, the session's
   pull request is the brief. If it is too big for one pull request, propose a split and wait.
 - If the plan conflicts with reality (a package API, a licence, a name), stop and say so.
 - Record every decision that changes the plan in `docs/DECISIONS.md`.
 - End every session with three lines: what changed, CI status, the next unchecked ROADMAP item.
+  Leo carries these lines back to the conductor, so they must stand on their own: name the pull
+  request, any decision recorded, and anything that now needs his or the conductor's decision.
 - Ask before adding any new service, account, paid dependency or runtime dependency.
 
 ## Principles (non-negotiable)

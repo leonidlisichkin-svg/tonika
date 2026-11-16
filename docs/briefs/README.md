@@ -36,3 +36,32 @@ Items without a brief (the rest of Phase 3, Phase 4 and later) have a spec in
 The principles in `CLAUDE.md`. If a brief and a principle disagree, the principle wins and the
 brief is corrected in the same pull request. If a brief disagrees with the code as it now is,
 trust the code, say so, and adjust.
+
+## Template for a new brief
+
+```markdown
+# <roadmap number> <Title>
+
+**Roadmap:** <phase and item>. **Needs Leo:** <what, or nothing>. **Spec:** <link, if any>.
+
+## Goal
+Two or three sentences: what exists at the end and why it matters.
+
+## Read first
+The files and specs to read before writing anything.
+
+## Build
+The pieces, as a list: modules, commands, tests, docs, CI.
+
+## Out of scope
+What this pull request must not grow into.
+
+## Pitfalls
+What is easy to get wrong here.
+
+## Done when
+A check anyone can run, and what Leo sees.
+```
+
+A brief is sized for one pull request. It names what to ask Leo before building, and it never
+asks for a new service, account or dependency without saying so in "Needs Leo".
