@@ -1,4 +1,4 @@
-"""Command line: ``tonika annotate``, ``tonika eval``, ``tonika trial``, ``tonika engines``."""
+"""Command line: ``tonika annotate``, ``eval``, ``trial``, ``engines`` and ``serve``."""
 
 from __future__ import annotations
 
@@ -132,6 +132,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     commands.add_parser("engines", help="list TTS engine presets")
+
+    serve = commands.add_parser(
+        "serve",
+        help="start the HTTP API (needs the extra 'api')",
+        description=(
+            "Start the HTTP API described in docs/specs/api-v1.md. Settings come from the "
+            "environment: TONIKA_PACK, TONIKA_MAX_CHARS, TONIKA_PARALLEL, TONIKA_CORS_ORIGINS."
+        ),
+    )
+    serve.add_argument(
+        "--host", default="127.0.0.1", help="address to listen on (default: 127.0.0.1)"
+    )
+    serve.add_argument("--port", type=int, default=8000, help="port to listen on (default: 8000)")
     return parser
 
 
@@ -153,6 +166,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _eval(args)
         if args.command == "trial":
             return _trial(args)
+        if args.command == "serve":
+            return _serve(args)
         return _engines()
     except OSError as exc:
         print(f"tonika: {exc.filename or 'file'}: {exc.strerror or exc}", file=sys.stderr)
@@ -244,6 +259,31 @@ def _trial(args: argparse.Namespace) -> int:
     else:
         sys.stdout.write(report.to_markdown())
     return 0 if report.passed else 1
+
+
+def _serve(args: argparse.Namespace) -> int:
+    import importlib.util
+
+    if any(importlib.util.find_spec(name) is None for name in ("fastapi", "uvicorn")):
+        print(
+            "tonika: the HTTP API needs FastAPI and uvicorn; "
+            "install it with: pip install 'tonika[api]'",
+            file=sys.stderr,
+        )
+        return 2
+    import logging
+
+    import uvicorn
+
+    from tonika.server import create_app
+
+    # The server logs each request itself (route, status, time, length, language), so
+    # uvicorn's access log is off.
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
+    uvicorn.run(create_app(), host=args.host, port=args.port, log_level="info", access_log=False)
+    return 0
 
 
 def _engines() -> int:

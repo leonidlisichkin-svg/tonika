@@ -56,7 +56,8 @@ Russian word stress and ё. Vision: `docs/VISION.md`. Plan: `docs/ROADMAP.md`.
 
 ```bash
 uv sync                                    # install with dev tools (offline demo pack only)
-uv sync --extra ru                         # also install the real Russian pack (stressonnx)
+uv sync --extra ru --extra api             # also the real Russian pack and the HTTP API
+                                           # (uv sync drops extras you leave out: name both)
 uv run ruff check src tests                # lint
 uv run ruff format src tests               # format
 uv run mypy                                # strict type check of src/
@@ -67,6 +68,7 @@ uv run tonika annotate -f script.txt --target yandex-speechkit --dict names.txt 
 uv run tonika eval data/golden/ru.txt --baseline data/golden/baseline.json
 uv run tonika trial data/trials/ru/chekhov-lady-with-the-dog.txt   # long text changed only by marks
 uv run tonika engines                      # list engine presets
+uv run tonika serve                        # HTTP API on 127.0.0.1:8000 (needs --extra api)
 ```
 
 ## Testing rules
@@ -94,7 +96,8 @@ src/tonika/pipeline.py     analyze() and annotate(), the public entry points
 src/tonika/review.py       checklist of ambiguous words for a human
 src/tonika/evaluate.py     accuracy on marked examples
 src/tonika/trial.py        long-text trial: the text survives every rendering
-src/tonika/cli.py          `tonika annotate`, `tonika eval`, `tonika trial`, `tonika engines`
+src/tonika/cli.py          `tonika annotate`, `eval`, `trial`, `engines`, `serve`
+src/tonika/server/         HTTP API v1 (extra `api`): create_app, routes, schemas, settings
 spec/                      JSON Schema of the Intent Document
 data/                      golden sets, examples, dictionaries, lexicons, trial texts (data/README.md)
 docs/                      vision, architecture, roadmap, decisions

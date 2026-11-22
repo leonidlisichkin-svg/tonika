@@ -1,6 +1,7 @@
 # HTTP API v1
 
-Status: specification for roadmap item 2.1. Changing it needs a `DECISIONS.md` entry.
+Status: built in roadmap item 2.1; additions of D-023 included. Changing it needs a
+`DECISIONS.md` entry.
 
 The API is a thin, stateless wrapper over `tonika.analyze` and `tonika.render`. It adds no
 behaviour of its own: for the same input and model it returns exactly what the library returns.
@@ -67,6 +68,8 @@ Response `200`:
   on `target` or `mode`: a client can re-render it in any notation without another request.
 - `demo` is `true` when the server answered with the demo pack. Clients must show that.
 - `notation` is the notation the target resolved to.
+- `tonika` is `tonika.__version__` of the server; the `0.1.0` above is only an example.
+- `tier` follows the model: `A` for a model that resolves homographs by context, else `B`.
 
 Long texts: the limit keeps one request short (the Russian models read a few hundred characters
 a second on one CPU core). A client splits a long text at paragraph breaks, sends the parts one
@@ -128,7 +131,9 @@ Every error has the same body and a matching HTTP status:
 | 400 | `unknown_mode` | `mode` is not one of the three |
 | 400 | `dictionary_error` | The dictionary has a bad line; the message names the line number |
 | 413 | `text_too_long` | `text` or `dictionary` is over its limit |
-| 422 | `invalid_request` | The body is not the JSON object described above |
+| 422 | `invalid_request` | The body is not the JSON object described above, including a field it does not name; the message names the fields at fault, never their values |
+| 404 | `not_found` | No such route |
+| 405 | `method_not_allowed` | The route exists for another HTTP method |
 | 503 | `pack_unavailable` | The pack could not load its models (for example, no network on first use) |
 | 500 | `internal` | Anything else. The message is generic; details go to the log, without the text |
 

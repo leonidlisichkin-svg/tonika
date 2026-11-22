@@ -41,7 +41,7 @@ Measured on 2026-11-16: 92.3% (348 of 377) on the golden set, which holds only h
 
 Specs: `docs/specs/api-v1.md`, `docs/specs/web-editor.md`.
 
-- [ ] **2.1** HTTP API as the optional extra `api`: `tonika serve`, `POST /v1/annotate`,
+- [x] **2.1** HTTP API as the optional extra `api`: `tonika serve`, `POST /v1/annotate`,
       `GET /v1/engines`, `GET /v1/languages`; no text stored
 - [ ] **2.2** Browser core: `render` in TypeScript proven identical to Python by shared test
       vectors; block splitting; API client
